@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C-Squared WMS | Orders</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Home</title>
 </head>
 <body>
-    <p>dashboard</p>
-    
+    <p>hello world</p>
 </body>
 </html>
