@@ -1,0 +1,362 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html{
+    --bg-pink: #FFEBFF;
+    --button-pink: #4E1652;
+    --pink: #EFB3EE;
+    --light-pink: #FFD3F5;
+}
+
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.page {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.page.active {
+  display: flex;
+}
+
+/*LOGIN CSS*/
+.login-container {
+  background-color: var(--bg-pink);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.login-box {
+  background-color: var(--pink);
+  border-radius: 8px;
+  padding: 32px;
+  width: 475px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: center;
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  color: black;
+}
+
+.login-title {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  font-size: 36px;
+  line-height: normal;
+  margin: 0;
+  padding: 0;
+}
+
+.login-subtitle {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: normal;
+  margin: 0;
+  padding: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.form-label {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: normal;
+  color: black;
+}
+
+.input-wrapper {
+  background-color: white;
+  border-radius: 4px;
+  width: 100%;
+  position: relative;
+  box-shadow: inset 1px 1px 4px 0px rgba(0, 0, 0, 0.25);
+}
+
+.form-input {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: normal;
+  color: #1c1c1c;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  outline: none;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.form-input::placeholder {
+  color: #a4a4a4;
+}
+
+.login-button {
+  background-color: #4e1652;
+  color: white;
+  border: none;
+  border-radius: 60px;
+  padding: 12px 24px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: var(--button-pink);
+}
+
+
+.dashboard-container {
+  background-color: var(--bg-pink);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 24px;
+  padding: 60px;
+}
+
+
+/*SIDE BAR*/
+.sidebar {
+  background-color: var(--pink);
+  border-radius: 8px;
+  width: 310px;
+  height: 100%;
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.sidebar-title {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  font-size: 36px;
+  line-height: normal;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.nav-button {
+  background-color: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: normal;
+  color: var(--button-pink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-button:hover {
+  background-color: var(--light-pink);
+}
+
+.nav-button.active {
+  background-color: var(--light-pink);
+  color: black;
+}
+
+.logout-button {
+  background-color: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: normal;
+  color: var(--button-pink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: var(--light-pink);
+}
+
+/* Main Content */
+.main-content {
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid white;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px 24px;
+  height: 100%;
+  overflow: auto;
+}
+
+.content-title {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 700;
+  font-size: 25px;
+  line-height: normal;
+  color: black;
+  margin: 0;
+  padding: 0;
+}
+
+/* Table Styles */
+.table-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: auto;
+}
+
+.table-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.table-row {
+  display: flex;
+  width: 100%;
+}
+
+.table-cell {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: normal;
+  color: black;
+  border: 1px solid rgba(28, 28, 28, 0.5);
+  border-left: 1px solid rgba(28, 28, 28, 0.5);
+  border-right: 1px solid rgba(28, 28, 28, 0.5);
+  text-align: center;
+}
+
+.table-cell:first-child {
+  border-left: 1px solid rgba(28, 28, 28, 0.5);
+}
+
+.table-cell:last-child {
+  border-right: 1px solid rgba(28, 28, 28, 0.5);
+}
+
+.header-cell {
+  background-color: var(--light-pink);
+  font-weight: 700;
+  border-top: 1px solid rgba(28, 28, 28, 0.5);
+}
+
+.table-row:first-child .table-cell {
+  border-top: 1px solid rgba(28, 28, 28, 0.5);
+}
+
+.table-row .table-cell {
+  border-top: none;
+}
+
+.table-row:not(:first-child) .table-cell {
+  border-bottom: 1px solid rgba(28, 28, 28, 0.5);
+}
+
+/* Placeholder Content */
+.placeholder-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-text {
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: #a4a4a4;
+}
+
+/*
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 20px;
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 475px;
+  }
+
+  .table-cell {
+    min-width: 80px;
+    font-size: 14px;
+    padding: 8px;
+  }
+}
+/
