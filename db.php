@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 //    $env_vars = [
 //     'DB_HOST' => $DB_SERVER,
 //     'DB_NAME' => $DB_NAME,
@@ -19,18 +20,45 @@
     // $DB_PASSWORD = 'root';
     // $DB_NAME = 'idm216';
 
-    $env_file = __DIR__ . '/.env.php';
-    $env = file_exists($env_file) ? require $env_file : [];
+    // $env_file = __DIR__ . '/.env.php';
+    // $env = file_exists($env_file) ? require $env_file : [];
 
-    define('DB_HOST', $env['DB_HOST'] ?? 'localhost');
-    define('DB_USER', $env['DB_USER'] ?? 'root');
-    define('DB_PASSWORD', $env['DB_PASSWORD'] ?? 'root');
-    define('DB_NAME', $env['DB_NAME'] ?? 'idm216');
+    // define('DB_HOST', $env['DB_HOST'] ?? 'localhost');
+    // define('DB_USER', $env['DB_USER'] ?? 'root');
+    // define('DB_PASSWORD', $env['DB_PASSWORD'] ?? 'root');
+    // define('DB_NAME', $env['DB_NAME'] ?? 'idm216');
 
 
     // Create database connection 
-    $conn = new mysqli($DB_HOST, $DB_USER, $DB_PASSWORD, $DB_NAME);
+    // $conn = new mysqli($DB_HOST, $DB_USER, $DB_PASSWORD, $DB_NAME);
 
-    if ($conn->connect_error)
-        die("Connection failed: " . $conn->connect_error);
+    // if ($conn->connect_error)
+    //     die("Connection failed: " . $conn->connect_error);
+
+// View details about the server
+// print_r($_SERVER);
+
+// Load environment variables
+$env_vars = [
+    'DB_SERVER'   => $_SERVER['REDIRECT_DB_SERVER']   ?? $_SERVER['DB_SERVER']   ?? 'localhost',
+    'DB_USERNAME' => $_SERVER['REDIRECT_DB_USERNAME'] ?? $_SERVER['DB_USERNAME'] ?? 'root',
+    'DB_PASSWORD' => $_SERVER['REDIRECT_DB_PASSWORD'] ?? $_SERVER['DB_PASSWORD'] ?? 'root',
+    'DB_NAME'     => $_SERVER['REDIRECT_DB_NAME']     ?? $_SERVER['DB_NAME']     ?? 'idm216'
+];
+
+if (in_array(null, $env_vars, true))
+    die('Missing required environment variables');
+
+define('DB_SERVER', $env_vars['DB_SERVER']);
+define('DB_USER',   $env_vars['DB_USERNAME']);
+define('DB_PASS',   $env_vars['DB_PASSWORD']);
+define('DB_NAME',   $env_vars['DB_NAME']);
+
+// Create database connection 
+$conn = new mysqli(DB_SERVER, DB_USER, DB_PASS, DB_NAME);
+
+if ($conn->connect_error)
+    die("Connection failed: " . $conn->connect_error);
+
+// echo "Connected successfully";
 ?>
