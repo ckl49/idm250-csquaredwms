@@ -25,6 +25,10 @@
             echo htmlspecialchars($column) . ": " . htmlspecialchars($value) . "<br>";
         }
         // echo "Item: " . $row['id'] . " - Quantity: " . $row['piece_count'] . "<br>";
+        echo "
+            <a href='edit-form.php?id=" . ($row['id']) . "'>Edit</a>
+            <a href='delete-form.php?id=" . ($row['id']) . "'>Delete</a>";
+        echo "<br><br>";
 
     }
     ?>

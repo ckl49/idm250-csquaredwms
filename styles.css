@@ -172,7 +172,7 @@ body {
 .sidebar-title {
   font-family: 'Be Vietnam Pro', sans-serif;
   font-weight: 700;
-  font-size: 36px;
+  font-size: 32px;
   line-height: normal;
   color: black;
   margin: 0;
@@ -192,7 +192,7 @@ body {
   padding: 12px;
   font-family: 'Be Vietnam Pro', sans-serif;
   font-weight: 400;
-  font-size: 24px;
+  font-size: 18px;
   line-height: normal;
   color: var(--button-pink);
   text-align: left;
@@ -216,7 +216,7 @@ body {
   padding: 12px;
   font-family: 'Be Vietnam Pro', sans-serif;
   font-weight: 400;
-  font-size: 24px;
+  font-size: 18px;
   line-height: normal;
   color: var(--button-pink);
   text-align: left;
@@ -274,7 +274,7 @@ body {
 .data-table thead th {
   background-color: var(--light-pink);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 14px;
   line-height: normal;
   color: black;
   padding: 10px;
@@ -284,7 +284,7 @@ body {
 
 .data-table tbody td {
   font-weight: 400;
-  font-size: 16px;
+  font-size: 14px;
   line-height: normal;
   color: black;
   padding: 10px;
@@ -304,7 +304,7 @@ body {
 .placeholder-text {
   font-family: 'Be Vietnam Pro', sans-serif;
   font-weight: 400;
-  font-size: 18px;
+  font-size: 14px;
   color: #a4a4a4;
 }
 

@@ -2,8 +2,8 @@
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
 
-    include '../db.php';
-    include '../auth.php';
+    require_once '/../db.php';
+    require_once '/../auth.php';
     check_api_key($env);
 
     // turn line 6 and 7 above on and off if you want to try the API KEY

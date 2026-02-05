@@ -63,8 +63,8 @@
         <div class="sidebar-top">
           <h1 class="sidebar-title">C-Squared WMS</h1>
           <div class="nav-buttons">
-            <button class="nav-button active" onclick="navigate('orders')">Orders</button>
-            <button class="nav-button" onclick="navigate('inventory')">Inventory</button>
+            <button class="nav-button active" onclick="navigate('inventory')">Inventory</button>
+            <button class="nav-button" onclick="navigate('orders')">Orders</button>
             <button class="nav-button" onclick="navigate('mpl')">MPL</button>
           </div>
         </div>
@@ -73,23 +73,56 @@
 
       <div class="main-content">
         <div class="content-wrapper">
-          <h2 class="content-title" id="contentTitle">Orders</h2>
+          <h2 class="content-title" id="contentTitle">Inventory</h2>
 
         
 <div id="ordersTable" class="table-container">
   <table class="data-table">
     <thead>
       <tr>
+        <th>ID</th>
         <th>SKU</th>
-        <th>Type</th>
-        <th>Category</th>
-        <th>Category</th>
-        <th>Category</th>
-        <th>Category</th>
+        <th>Description</th>
+        <th>UOM</th>
+        <th>Piece Count</th>
+        <th>Length</th>
+        <th>Width</th>
+        <th>Height</th>
+        <th>Weight</th>
+        <th>Assembly</th>
+        <th>Price Rate</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
+      <?php 
+        if ($result->num_rows > 0) {
+          while ($row = $result->fetch_assoc()) {
+              echo "<tr>";
+              echo "<td>" . htmlspecialchars($row['id']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['sku']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['description']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['uom_primary']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['piece_count']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['length_inches']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['width_inches']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['height_inches']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['weight_lbs']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['assembly']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['rate']) . "</td>";
+              echo "<td>";
+              echo "<a href='edit-form.php?id=" . htmlspecialchars($row['id']) . "'>Edit</a> ";
+              echo "<a href='delete-form.php?id=" . htmlspecialchars($row['id']) . "' onclick=\"return confirm('Are you sure you want to delete this record?')\">Delete</a>";
+              echo "</td>";
+              echo "</tr>";
+          }
+      } else {
+          echo "<tr><td colspan='12'>No records found.</td></tr>";
+      }
+      ?>
+
+      
+      <!-- <tr>
         <td>111111111111</td>
         <td>Wood</td>
         <td>Chart</td>
@@ -200,7 +233,7 @@
         <td>Chart</td>
         <td>Chart</td>
         <td>Chart</td>
-      </tr>
+      </tr> -->
     </tbody>
   </table>
 </div>
