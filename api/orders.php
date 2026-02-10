@@ -32,12 +32,13 @@
         // get data from other team
         $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!isset($data['id']) || !isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity']) || !isset($data['width_inches']) || !isset($data['height_inches']) || !isset($data['weight_lbs']) || !isset($data['assembly']) || !isset($data['rate'])) {
+        if (!isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity'])) {
             http_response_code(400);
             echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
             exit;
 
         } else {
+        $id             = $data['id'];
         $ficha          = $data['ficha'];
         $description1    = $data['description1']; 
         $description2    = $data['description2']; 
@@ -45,7 +46,7 @@
         $quantity_unit    = $data['quantity_unit']; 
         $footage_quantity  = $data['footage_quantity']; 
         
-            $sql = "INSERT INTO orders (ficha, description1, description2, quantity, quantity_unit, footage_quantity, time_stamp) VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO orders (ficha, description1, description2, quantity, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("issisi", $ficha, $description1, $description2, $quantity, $quantity_unit, $footage_quantity);
     
@@ -56,5 +57,59 @@
                 echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         }
+    } elseif ($method === 'PUT') {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($data['id'])) {
+            echo json_encode(['success' => false, 'error' => 'ID is required for update']);
+            exit;
+        }
+
+      
+        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        
+    
+        $stmt->bind_param("ssisii", $data['description1'], $data['description2'], $data['quantity'],  $data['quantity_unit'],  $data['footage_quantity'],  $data['id']
+    );
+
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Order updated successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
+
+   } elseif ($method === 'DELETE') {
+       
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        $id = $data['id'] ?? null;
+
+        if (!$id) {
+            echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
+            exit;
+        }
+
+
+        $sql = "DELETE FROM orders WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $id);
+
+        if ($stmt->execute()) {
+           
+            if ($stmt->affected_rows > 0) {
+                echo json_encode(['success' => true, 'message' => "Order $id deleted successfully"]);
+            } else {
+                echo json_encode(['success' => false, 'error' => "No order found with ID $id"]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
+
+    } else {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method Not Allowed']);
     }
+
 ?>
