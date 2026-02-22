@@ -6,7 +6,7 @@
     require_once '../auth.php';
     check_api_key($env);
 
-    // turn line 6 and 7 above on and off if you want to try the API KEY
+    // comment out the auth and env stuff if you want to test without the API KEY
 
     $method = $_SERVER['REQUEST_METHOD'];
 
@@ -38,7 +38,7 @@
 
         } else {
         $id             = $data['id'];
-        $quant_instock  = $data['quant_instock'];
+        $quant_instock = $data['quant_instock'];
         $ficha          = $data['ficha'];
         $sku            = $data['sku'];
         $description    = $data['description']; 
@@ -50,11 +50,11 @@
         $weight_lbs     = $data['weight_lbs']; 
         $assembly       = $data['assembly']; 
         $rate           = $data['rate'];
-            
-            $sql = "INSERT INTO inventory (id, ficha, sku, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate, time_stamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+
+            $sql = "INSERT INTO inventory (id, quant_instock, ficha, sku, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate, time_stamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iisssiddddsd", $id, $ficha, $sku, $description, $uom_primary, $piece_count, $length_inches, $width_inches, $height_inches, $weight_lbs, $assembly, $rate);
-    
+            $stmt->bind_param("iiisssiddddsd", $id, $quant_instock, $ficha, $sku, $description, $uom_primary, $piece_count, $length_inches, $width_inches, $height_inches, $weight_lbs, $assembly, $rate);
+
             if ($stmt->execute()) {
                 http_response_code(201);
                 echo json_encode(['success' => true, 'data' => 'New item created successfully']);

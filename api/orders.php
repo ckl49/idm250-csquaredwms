@@ -2,15 +2,13 @@
 
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
+    require_once '../db.php';
+    // require_once '../auth.php';
+    // check_api_key($env);
 
-    include '../db.php';
-    include '../auth.php';
-    check_api_key($env);
-
-    // turn line 6 and 7 above on and off if you want to try the API KEY
-
+        // comment out the auth and env stuff if you want to test without the API KEY
+    
     $method = $_SERVER['REQUEST_METHOD'];
-
 
     if ($method === 'GET') {
         // echo json_encode(['success' => true, 'data' => $message]);
@@ -38,7 +36,7 @@
             exit;
 
         } else {
-        $id             = $data['id'];
+        $id             = $data['order_id'];
         $ficha          = $data['ficha'];
         $description1    = $data['description1']; 
         $description2    = $data['description2']; 
@@ -66,7 +64,7 @@
         }
 
       
-        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE id = ?";
+        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE order_id = ?";
         
         $stmt = $conn->prepare($sql);
         
@@ -101,7 +99,7 @@
             if ($stmt->affected_rows > 0) {
                 echo json_encode(['success' => true, 'message' => "Order $id deleted successfully"]);
             } else {
-                echo json_encode(['success' => false, 'error' => "No order found with ID $id"]);
+                echo json_encode(['success' => false, 'error' => "No order found with ID $order_id"]);
             }
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
