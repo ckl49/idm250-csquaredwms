@@ -1,7 +1,7 @@
 <?php 
 
     function fetch_inventory($conn) {
-        $sql = "SELECT * FROM inventory";
+        $sql = "SELECT id AS inventory_id, sku, quant_instock, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate FROM inventory";
         $result = $conn->query($sql);
 
         if ($result->num_rows > 0) {
@@ -14,5 +14,6 @@
             return ['success' => false, 'error' => 'No inventory items found'];
         }
     }
+
 
 ?>

@@ -1,6 +1,6 @@
 <?php 
     function fetch_orders($conn) {
-        $sql = "SELECT * FROM orders";
+        $sql = "SELECT id AS orders_id, status, ficha, description1, description2, quantity, quantity_unit, footage_quantity FROM orders";
         $result = $conn->query($sql);
 
         if ($result->num_rows > 0) {
@@ -15,7 +15,8 @@
     }
 
 
-    // function edit_order($data) {
+    function edit_orders() {
 
-    // }
+    }
+
 ?>

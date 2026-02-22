@@ -23,7 +23,7 @@
             $id             = $data['id'];
             $order_number    = $data['order_number'];
             $truck_number    = $data['truck_number']; 
-            $expected_delivery    = $data['expected_delivery']; 
+            $expected_delivery  = $data['expected_delivery']; 
         
             
             $sql = "INSERT INTO mpl (id, order_number, truck_number, expected_delivery) VALUES (?, ?, ?, ?)";

@@ -1,7 +1,6 @@
 <?php 
     require_once 'db.php';
 
-    $id = $_GET['id'] ?? null;
     $table = $_GET['table'] ?? null;
 
     $allowed_tables = ['inventory', 'orders', 'mpl'];
@@ -11,24 +10,12 @@
         exit('Invalid table');
     }
 
-    if ($table === 'inventory') {
-        $stmt = $conn->prepare("SELECT * FROM inventory WHERE id = ?");
-    } elseif ($table === 'orders') {
-        $stmt = $conn->prepare("SELECT * FROM orders WHERE id = ?");
-    } elseif ($table === 'mpl') {
-        $stmt = $conn->prepare("SELECT * FROM mpl WHERE id = ?");
-    }
-    
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-
-    if ($table === 'inventory'): ?>            <!-- edit -->
-        <form method="post" id="edit-form">
+    if ($table === 'inventory'): ?>            <!-- create a new item -->
+        <form method="post">
             <input type="hidden" name="table" value="inventory">
             <div class="input-div">
-                <label for="id">ID</label>
-                <input name="id" type="text" value="<?= $row['id'] ?? '' ?>" required>
+                <label for="ficha">FICHA</label>
+                <input name="ficha" type="number" value="<?= $row['ficha'] ?? '' ?>" required>
             </div>
 
             <div class="input-div">
@@ -86,7 +73,7 @@
                 <input name="rate" type="number" value="<?= $row['rate'] ?? '' ?>" required>
             </div>
 
-            <button type="submit">Save</button>
+            <button type="submit" >Save</button>
         </form>
     
     <?php elseif ($table === 'orders'): ?>
@@ -149,11 +136,10 @@
     if($_SERVER['REQUEST_METHOD'] === 'POST') {
         $table = $_POST['table'] ?? null;
 
-        if (!in_array($table, $allowed_tables)) exit('Invalid table');
-
         if ($table === 'inventory') {
-            $id = $_POST['id'];
+            $ficha = $_POST['ficha'];
             $sku = $_POST['sku'];
+            $quant_instock = $_POST['quant_instock'];
             $description = $_POST['description'];
             $uom_primary = $_POST['uom_primary'];
             $piece_count = $_POST['piece_count'];
@@ -164,36 +150,17 @@
             $assembly = $_POST['assembly'];
             $rate = $_POST['rate'];
 
-            $update_stmt = $conn->prepare("UPDATE inventory SET 
-                                            sku = ?, 
-                                            description = ?, 
-                                            uom_primary = ?, 
-                                            piece_count = ?, 
-                                            length_inches = ?, 
-                                            width_inches = ?, 
-                                            height_inches = ?, 
-                                            weight_lbs = ?, 
-                                            assembly = ?, 
-                                            rate = ? 
-                                        WHERE id = ?");
-            $update_stmt->bind_param("sssiddddssi", 
-                                    $sku, 
-                                    $description, 
-                                    $uom_primary, 
-                                    $piece_count, 
-                                    $length_inches, 
-                                    $width_inches, 
-                                    $height_inches, 
-                                    $weight_lbs, 
-                                    $assembly, 
-                                    $rate, 
-                                    $id);
-
-            if ($update_stmt->execute()) {
+            $sql = "INSERT INTO inventory (ficha, sku, quant_instock, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate, time_stamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("isissiddddsd", $ficha, $sku, $quant_instock, $description, $uom_primary, $piece_count, $length_inches, $width_inches, $height_inches, $weight_lbs, $assembly, $rate);
+    
+            if ($stmt->execute()) {
+                http_response_code(201);
+                echo json_encode(['success' => true, 'data' => 'New item created successfully']);
                 header("Location: dashboard.php");
                 exit();
             } else {
-                echo "Error updating record: " . $conn->error;
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         } elseif ($table === 'orders') {
             $ficha = $_POST['ficha'];
@@ -201,129 +168,39 @@
             $description2 = $_POST['description2'];        
             $quantity = $_POST['quantity'];
             $quantity_unit = $_POST['quantity_unit'];
-            $footage = $_POST['footage'];
+            $footage_quantity = $_POST['footage_quantity'];
 
-            $update_stmt = $conn->prepare("UPDATE orders SET 
-                                            ficha = ?, 
-                                            description1 = ?, 
-                                            description2 = ?, 
-                                            quantity = ?, 
-                                            quantity_unit = ?, 
-                                            footage = ?, 
-                                            id = ?
-                                        WHERE id = ?");
-            $update_stmt->bind_param("issisi", 
-                                    $ficha, 
-                                    $description1, 
-                                    $description2, 
-                                    $quantity, 
-                                    $quantity_unit, 
-                                    $footage, 
-                                    );
-
-            if ($update_stmt->execute()) {
+            
+            $sql = "INSERT INTO orders( ficha, description1, description2, quantity, quantity_unit, footage_quantity) VALUES (?,?,?,?,?,?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("issisi", $ficha, $description1, $description2, $quantity, $quantity_unit, $footage_quantity);
+    
+            if ($stmt->execute()) {
+                http_response_code(201);
+                echo json_encode(['success' => true, 'data' => 'New order created successfully']);
                 header("Location: dashboard.php");
                 exit();
             } else {
-                echo "Error updating record: " . $conn->error;
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         } elseif ($table === 'mpl') {
-            // mpl UPDATE
-
             $order_number = $_POST['order_number'];
             $truck_number = $_POST['truck_number'];
             $expected_delivery = $_POST['expected_delivery'];        
 
-            $update_stmt = $conn->prepare("UPDATE mpl SET 
-                                            order_number = ?, 
-                                            truck_number = ?, 
-                                            expected_delivery = ?, 
-                                            id = ?
-                                        WHERE id = ?");
-            $update_stmt->bind_param("iis", 
-                                    $order_number, 
-                                    $truck_number, 
-                                    $expected_delivery
-                                    );
-
-            if ($update_stmt->execute()) {
+            $sql = "INSERT INTO mpl( order_number, truck_number, expected_delivery) VALUES (?,?,?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("iis", $order_number, $truck_number, $expected_delivery);
+    
+            if ($stmt->execute()) {
+                http_response_code(201);
+                echo json_encode(['success' => true, 'data' => 'New mpl created successfully']);
                 header("Location: dashboard.php");
                 exit();
             } else {
-                echo "Error updating record: " . $conn->error;
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
-        }}
-?>
-
-
-
-<?php ?> 
-    <!-- require 'db.php';
-
-    $id = $_GET['id'] ?? null;
-
-    $stmt = $conn->prepare("SELECT id, sku, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate
-                        FROM inventory
-                        WHERE id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-
-    if (!$row) {
-        http_response_code(404);
-        exit('Record not found');
-    }
-
-    
-    if($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $id = $_POST['id'];
-        $sku = $_POST['sku'];
-        $description = $_POST['description'];
-        $uom_primary = $_POST['uom_primary'];
-        $piece_count = $_POST['piece_count'];
-        $length_inches = $_POST['length_inches'];
-        $width_inches = $_POST['width_inches'];
-        $height_inches = $_POST['height_inches'];
-        $weight_lbs = $_POST['weight_lbs'];
-        $assembly = $_POST['assembly'];
-        $rate = $_POST['rate'];
-
-        $update_stmt = $conn->prepare("UPDATE inventory SET 
-                                        sku = ?, 
-                                        description = ?, 
-                                        uom_primary = ?, 
-                                        piece_count = ?, 
-                                        length_inches = ?, 
-                                        width_inches = ?, 
-                                        height_inches = ?, 
-                                        weight_lbs = ?, 
-                                        assembly = ?, 
-                                        rate = ? 
-                                      WHERE id = ?");
-        $update_stmt->bind_param("sssiddddssi", 
-                                  $sku, 
-                                  $description, 
-                                  $uom_primary, 
-                                  $piece_count, 
-                                  $length_inches, 
-                                  $width_inches, 
-                                  $height_inches, 
-                                  $weight_lbs, 
-                                  $assembly, 
-                                  $rate, 
-                                  $id);
-
-        if ($update_stmt->execute()) {
-            header("Location: dashboard.php");
-            exit();
-        } else {
-            echo "Error updating record: " . $conn->error;
         }
-    }
+    }    
 ?>
 
-
-
- -->
