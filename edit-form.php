@@ -196,37 +196,43 @@
                 echo "Error updating record: " . $conn->error;
             }
         } elseif ($table === 'orders') {
-            $ficha = $_POST['ficha'];
-            $description1 = $_POST['description1'];
-            $description2 = $_POST['description2'];        
-            $quantity = $_POST['quantity'];
-            $quantity_unit = $_POST['quantity_unit'];
-            $footage = $_POST['footage'];
 
-            $update_stmt = $conn->prepare("UPDATE orders SET 
-                                            ficha = ?, 
-                                            description1 = ?, 
-                                            description2 = ?, 
-                                            quantity = ?, 
-                                            quantity_unit = ?, 
-                                            footage = ?, 
-                                            id = ?
-                                        WHERE id = ?");
-            $update_stmt->bind_param("issisi", 
-                                    $ficha, 
-                                    $description1, 
-                                    $description2, 
-                                    $quantity, 
-                                    $quantity_unit, 
-                                    $footage, 
-                                    );
+    $id = $_GET['id']; // get the id from URL
 
-            if ($update_stmt->execute()) {
-                header("Location: dashboard.php");
-                exit();
-            } else {
-                echo "Error updating record: " . $conn->error;
-            }
+    $ficha = $_POST['ficha'];
+    $description1 = $_POST['description1'];
+    $description2 = $_POST['description2'];        
+    $quantity = $_POST['quantity'];
+    $quantity_unit = $_POST['quantity_unit'];
+    $footage_quantity = $_POST['footage_quantity'];
+
+    $update_stmt = $conn->prepare("UPDATE orders SET 
+        ficha = ?, 
+        description1 = ?, 
+        description2 = ?, 
+        quantity = ?, 
+        quantity_unit = ?, 
+        footage_quantity = ?
+    WHERE id = ?");
+
+    $update_stmt->bind_param(
+        "issisii",
+        $ficha,
+        $description1,
+        $description2,
+        $quantity,
+        $quantity_unit,
+        $footage_quantity,
+        $id
+    );
+
+    if ($update_stmt->execute()) {
+        header("Location: dashboard.php");
+        exit();
+    } else {
+        echo "Error updating record: " . $conn->error;
+    }
+}
         } elseif ($table === 'mpl') {
             // mpl UPDATE
 
