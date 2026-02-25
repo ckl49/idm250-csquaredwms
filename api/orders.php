@@ -3,6 +3,7 @@
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
     require_once '../db.php';
+    require_once '../lib/orders.php';
     // require_once '../auth.php';
     // check_api_key($env);
 
@@ -55,6 +56,21 @@
                 echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         }
+        } elseif ($method === 'PATCH') {
+        // Confirm an order — updates order status + deducts from inventory
+        $data     = json_decode(file_get_contents('php://input'), true);
+        $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
+
+        if (!$order_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'order_id is required']);
+            exit;
+        }
+
+        $result = confirm_order($conn, $order_id);
+
+        http_response_code($result['success'] ? 200 : 422);
+        echo json_encode($result);
     } elseif ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -79,27 +95,24 @@
         }
 
    } elseif ($method === 'DELETE') {
-       
+
         $data = json_decode(file_get_contents('php://input'), true);
-        
-        $id = $data['id'] ?? null;
+        $id   = $data['id'] ?? null;
 
         if (!$id) {
             echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
             exit;
         }
 
-
         $sql = "DELETE FROM orders WHERE id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $id);
 
         if ($stmt->execute()) {
-           
             if ($stmt->affected_rows > 0) {
                 echo json_encode(['success' => true, 'message' => "Order $id deleted successfully"]);
             } else {
-                echo json_encode(['success' => false, 'error' => "No order found with ID $order_id"]);
+                echo json_encode(['success' => false, 'error' => "No order found with ID $id"]);
             }
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
@@ -109,5 +122,4 @@
         http_response_code(405);
         echo json_encode(['error' => 'Method Not Allowed']);
     }
-
 ?>
