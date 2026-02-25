@@ -39,22 +39,4 @@
         }
     }
 
-    // json_decode(file_get_contents('php://input'), true);
-
-    //  if (!isset($data['reference_number']) || !isset($data['trailer_number']) || !isset($data['expected_arrival']) || !isset($data['items'])) {
-    //     http_response_code(400);
-    //     echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
-    //     exit;
-    // }  
-    // else if (check_for_duplicates($data, $conn)) {
-    //     http_response_code(409);
-    //     echo json_encode(['error' => 'Conflict', 'details' => 'Duplicate reference number']);
-    //     exit;
-    // } 
-    // else {
-    //     // SOMETHING THAT SAYS THAT IT WILL CREATE SOMETHING FOR YOU
-    // }
-
-
-
 ?>
