@@ -2,6 +2,7 @@
     require_once 'db.php';
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     $id = $_GET['id'] ?? null;
     if ($id) {
         $stmt = $conn->prepare("DELETE FROM inventory WHERE id = ?");
@@ -19,6 +20,8 @@
     } else {
         echo "Invalid ID.";
 =======
+=======
+>>>>>>> Stashed changes
     $id    = $_GET['id'] ?? null;
     $table = $_GET['table'] ?? null;
 
@@ -27,6 +30,9 @@
     if (!in_array($table, $allowed_tables)) {
         http_response_code(400);
         exit('Invalid table');
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     }
 
