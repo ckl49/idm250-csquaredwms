@@ -2,15 +2,14 @@
 
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
+    require_once '../db.php';
+    require_once '../lib/orders.php';
+    // require_once '../auth.php';
+    // check_api_key($env);
 
-  include '../db.php';
-  include '../auth.php';
-    check_api_key($env);
-
-    // turn line 6 and 7 above on and off if you want to try the API KEY
-
+        // comment out the auth and env stuff if you want to test without the API KEY
+    
     $method = $_SERVER['REQUEST_METHOD'];
-
 
     if ($method === 'GET') {
         // echo json_encode(['success' => true, 'data' => $message]);
@@ -38,7 +37,7 @@
             exit;
 
         } else {
-        $id             = $data['id'];
+        $id             = $data['order_id'];
         $ficha          = $data['ficha'];
         $description1    = $data['description1']; 
         $description2    = $data['description2']; 
@@ -57,6 +56,21 @@
                 echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         }
+        } elseif ($method === 'PATCH') {
+        // Confirm an order — updates order status + deducts from inventory
+        $data     = json_decode(file_get_contents('php://input'), true);
+        $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
+
+        if (!$order_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'order_id is required']);
+            exit;
+        }
+
+        $result = confirm_order($conn, $order_id);
+
+        http_response_code($result['success'] ? 200 : 422);
+        echo json_encode($result);
     } elseif ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -66,7 +80,7 @@
         }
 
       
-        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE id = ?";
+        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE order_id = ?";
         
         $stmt = $conn->prepare($sql);
         
@@ -81,23 +95,20 @@
         }
 
    } elseif ($method === 'DELETE') {
-       
+
         $data = json_decode(file_get_contents('php://input'), true);
-        
-        $id = $data['id'] ?? null;
+        $id   = $data['id'] ?? null;
 
         if (!$id) {
             echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
             exit;
         }
 
-
         $sql = "DELETE FROM orders WHERE id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $id);
 
         if ($stmt->execute()) {
-           
             if ($stmt->affected_rows > 0) {
                 echo json_encode(['success' => true, 'message' => "Order $id deleted successfully"]);
             } else {
@@ -111,5 +122,4 @@
         http_response_code(405);
         echo json_encode(['error' => 'Method Not Allowed']);
     }
-
 ?>

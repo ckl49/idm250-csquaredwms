@@ -22,6 +22,12 @@ body {
   overflow: hidden;
 }
 
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .page {
   /* display: none; */
   width: 100%;

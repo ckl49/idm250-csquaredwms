@@ -6,7 +6,7 @@
     require_once '../auth.php';
     check_api_key($env);
 
-    // turn line 6 and 7 above on and off if you want to try the API KEY
+    // comment out the auth and env stuff if you want to test without the API KEY
 
     $method = $_SERVER['REQUEST_METHOD'];
 

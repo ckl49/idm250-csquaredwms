@@ -34,6 +34,7 @@ function navigate(section) {
   // NAV BUTTON
   const navButtons = document.querySelectorAll('.nav-button');
   navButtons.forEach(btn => btn.classList.remove('active'));
+  // document.getElementById('addButton').href = `create-form.php?table=${table}`;
   
 
   navButtons.forEach(btn => {
@@ -46,23 +47,28 @@ function navigate(section) {
   const contentTitle = document.getElementById('contentTitle');
   contentTitle.textContent = section.charAt(0).toUpperCase() + section.slice(1);
   
-  const ordersTable = document.getElementById('ordersTable');
-  const inventoryTable = document.getElementById('inventoryTable');
+  const ordersTable = document.getElementById('ordersSection');
+  const inventoryTable = document.getElementById('inventorySection');
   const placeholderContent = document.getElementById('placeholderContent');
-  
+  const mplTable = document.getElementById('mplSection');
   
   if (section === 'orders') {
-    ordersTable.style.display = 'flex';
     placeholderContent.style.display = 'none';
+    ordersTable.style.display = 'flex';
     inventoryTable.style.display = 'none';
+    mplTable.style.display = 'none';
+
   } else if (section === 'inventory') {
     ordersTable.style.display = 'none';
-    placeholderContent.style.display = 'flex';
+    placeholderContent.style.display = 'none'; // fix this
     inventoryTable.style.display = 'flex';
+    mplTable.style.display = 'none';
+    
   } else if (section === 'mpl') {
     ordersTable.style.display = 'none';
-    placeholderContent.style.display = 'flex';
+    placeholderContent.style.display = 'none';
     inventoryTable.style.display = 'none';
+    mplTable.style.display = 'flex';
   }
 }
 

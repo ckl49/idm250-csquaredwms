@@ -1,11 +1,3 @@
-<!--  reference number, trailer number, arrival date, status) and one or more items (inventory units).  -->
-<!-- 
-Read the JSON body: json_decode(file_get_contents('php://input'), true)
-Validate required fields: reference number, trailer number, expected arrival, items
-Check for duplicates: Look up by reference number, return 409 if it already exists
-Auto-create missing SKUs: For each item, check if the SKU exists in the WMS database. If not, create it using the sku_details included in the request.
-Create the MPL record: Insert header and items into the database
-Return success response: {"success": true, "message": "MPL received successfully", "mpl_id": 1} -->
 
 
 <?php 
@@ -13,24 +5,38 @@ Return success response: {"success": true, "message": "MPL received successfully
     header('Access-Control-Allow-Origin: *');
 
     include '../db.php';
-    include '../check_duplicates.php'
+    include '../auth.php';
+    check_api_key($env);
 
-    json_decode(file_get_contents('php://input'), true);
+    $method = $_SERVER['REQUEST_METHOD'];
 
-     if (!isset($data['reference_number']) || !isset($data['trailer_number']) || !isset($data['expected_arrival']) || !isset($data['items'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
-        exit;
-    }  
-    else if (check_for_duplicates($data, $conn)) {
-        http_response_code(409);
-        echo json_encode(['error' => 'Conflict', 'details' => 'Duplicate reference number']);
-        exit;
-    } 
-    else {
-        // SOMETHING THAT SAYS THAT IT WILL CREATE SOMETHING FOR YOU
+    if ($method === 'POST') {
+        // get data from other team
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($data['id']) || !isset($data['order_number']) || !isset($data['truck_number']) || !isset($data['expected_delivery'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
+            exit;
+
+        } else {
+            $id             = $data['id'];
+            $order_number    = $data['order_number'];
+            $truck_number    = $data['truck_number']; 
+            $expected_delivery  = $data['expected_delivery']; 
+        
+            
+            $sql = "INSERT INTO mpl (id, order_number, truck_number, expected_delivery) VALUES (?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("iiis", $id, $order_number, $truck_number, $expected_delivery);
+    
+            if ($stmt->execute()) {
+                http_response_code(201);
+                echo json_encode(['success' => true, 'data' => 'New item created successfully']);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
+            }
+        }
     }
-
-
 
 ?>
