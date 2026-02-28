@@ -2,39 +2,39 @@
     session_start();
 
     require_once "db.php";
-    require_once "lib/auth-user.php";
 
-    // if (!$result) {
-    //     die("Query failed: " . $conn->error);
-    // }
+    //  if (!$result) {
+    //      die("Query failed: " . $conn->error);
+    //  }
 
-    if(isset($_POST["login"])) {
-        if(!empty($_POST["username"]) && !empty($_POST["password"])) {
-            $_SESSION["username"] = $_POST["username"];
-            $_SESSION["password"] = $_POST["password"];
-
-            $sql = "SELECT * FROM user_mgmt WHERE name = '$username' AND password = '$password'";
-            $result = $conn->query($sql);
-
-            if ($result->num_rows > 0) {
-
-                // session_start();
-                // $_SESSION['logged_in'] = true;
-                header('Location: dashboard.php');
-                exit;
-                
-            } else {
-                echo "Invalid username or password.";
+    if (isset($_POST["login"])) {
+        if (!empty($_POST["username"]) && !empty($_POST["password"])) {
+    
+            $username = $_POST["username"];
+            $password = $_POST["password"];
+    
+            $stmt = $conn->prepare("SELECT password FROM user_mgmt WHERE name = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+    
+            if ($result) {
+                $user = $result->fetch_assoc();
+    
+                if ($user && password_verify($password, $user['password'])) {
+                    $_SESSION["username"] = $username;
+                    header('Location: dashboard.php');
+                    exit;
+                }
             }
+    
         } else {
             echo "Please enter both username and password.";
         }
     }
 
-
     $conn -> close();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,7 +67,7 @@
                         <input class="form-input" type="password" id="password" name="password">
                     </div>
                 
-                    <button class="login-button" type="submit" value="submit">Log In</button>
+                    <button class="login-button" type="submit" name="login" value="submit">Log In</button>
                 </form>
             </div>
         </div>

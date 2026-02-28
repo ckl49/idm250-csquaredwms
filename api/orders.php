@@ -4,10 +4,10 @@
     header('Access-Control-Allow-Origin: *');
     require_once '../db.php';
     require_once '../lib/orders.php';
-    // require_once '../auth.php';
-    // check_api_key($env);
+    require_once '../auth.php';
+    check_api_key($env);
 
-        // comment out the auth and env stuff if you want to test without the API KEY
+    // comment out the auth and env stuff if you want to test without the API KEY
     
     $method = $_SERVER['REQUEST_METHOD'];
 
@@ -30,11 +30,27 @@
     } elseif ($method === 'POST') {
         // get data from other team
         $data = json_decode(file_get_contents('php://input'), true);
+        $action = $data['action'] ?? 'create';
 
-        if (!isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
-            exit;
+        if ($action === 'confirm') {
+            $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
+
+            if (!$order_id) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Bad Request', 'details' => 'order_id is required']);
+                exit;
+            }
+
+            $result = confirm_order($conn, $order_id);
+            http_response_code($result['success'] ? 200 : 422);
+            echo json_encode($result);
+            
+            } else {
+
+            if (!isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
+                exit;
 
         } else {
         $id             = $data['order_id'];
@@ -56,21 +72,8 @@
                 echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         }
-        } elseif ($method === 'PATCH') {
-        // Confirm an order — updates order status + deducts from inventory
-        $data     = json_decode(file_get_contents('php://input'), true);
-        $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
-
-        if (!$order_id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Bad Request', 'details' => 'order_id is required']);
-            exit;
-        }
-
-        $result = confirm_order($conn, $order_id);
-
-        http_response_code($result['success'] ? 200 : 422);
-        echo json_encode($result);
+    }
+    
     } elseif ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
 

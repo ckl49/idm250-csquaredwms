@@ -18,11 +18,6 @@
     logout();
   }
 
-  // $result = $conn -> query("SELECT * FROM inventory");
-  // if (!$result) {
-  //   die("Query failed: " . $conn->error);
-  // }
-  // $conn -> close();
 ?>
 
 <!DOCTYPE html>
@@ -241,11 +236,11 @@
         btn.textContent = 'Processing...';
 
         try {
-            const res = await fetch('/api/orders.php', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ order_id: parseInt(orderId) })
-            });
+          const res = await fetch('api/orders.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'confirm', order_id: parseInt(orderId) })
+          });
 
             const data = await res.json();
 
