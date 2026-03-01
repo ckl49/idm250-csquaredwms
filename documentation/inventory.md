@@ -1,4 +1,4 @@
-# Inventory API Documentation
+# Inventory API Documentation (inventory.php)
 
 ## Overview
 
@@ -15,33 +15,60 @@ GET, POST
 `Access-Control-Allow-Origin: *`
 
 **Authentication**  
-Required.  
-A valid API key must be provided. The exact header format is not shown in the provided code and must be confirmed separately.
+Required.
+
+If authentication is not present, the API returns:
+
+HTTP 401
+```json
+{ "error": "Unauthorized" }
+```
+
+**Request Type**  
+All interactions are performed using HTTP requests that return JSON responses.
 
 ---
 
 ## Data Model: inventory Table
 
-Based strictly on the SQL in the provided file, the following fields are used:
+Because `GET` uses `SELECT * FROM inventory`, additional columns may exist. Based strictly on fields referenced in this file, the following columns are used:
 
-| Field Name       | Type            | Required (POST) | Notes |
-|------------------|----------------|-----------------|-------|
-| id               | integer        | Yes             | Primary identifier |
-| quant_instock    | integer        | Not validated*  | Used in INSERT but not checked in required-field validation |
-| ficha            | integer        | Yes             |  |
-| sku              | string         | Yes             |  |
-| description      | string         | Yes             |  |
-| uom_primary      | string         | Yes             | Unit of measure |
-| piece_count      | integer        | Yes             |  |
-| length_inches    | decimal/float  | Yes             |  |
-| width_inches     | decimal/float  | Yes             |  |
-| height_inches    | decimal/float  | Yes             |  |
-| weight_lbs       | decimal/float  | Yes             |  |
-| assembly         | string         | Yes             |  |
-| rate             | decimal/float  | Yes             |  |
-| time_stamp       | datetime       | Auto-set        | Set by `NOW()` during insert |
+| Field Name      | Type          | Required (POST) | Notes |
+|----------------|---------------|-----------------|------|
+| id             | integer       | Yes             | Inserted as provided (not auto-generated in this snippet) |
+| quant_instock  | integer       | Not validated*  | Used in INSERT and should be included |
+| ficha          | integer       | Yes             |  |
+| sku            | string        | Yes             |  |
+| description    | string        | Yes             |  |
+| uom_primary    | string        | Yes             | Unit of measure |
+| piece_count    | integer       | Yes             |  |
+| length_inches  | decimal/float | Yes             |  |
+| width_inches   | decimal/float | Yes             |  |
+| height_inches  | decimal/float | Yes             |  |
+| weight_lbs     | decimal/float | Yes             |  |
+| assembly       | string        | Yes             |  |
+| rate           | decimal/float | Yes             |  |
+| time_stamp     | datetime      | Auto-set        | Set by `NOW()` during insert |
 
-*Although `quant_instock` is not validated as required, it is used in the prepared statement and should always be included.
+\*Although `quant_instock` is not checked in the required-field validation, it is used in the prepared statement and should always be included to avoid unexpected behavior.
+
+---
+
+## Response Format
+
+### Success Responses
+```json
+{ "success": true, "data": [...] }
+{ "success": true, "data": "New item created successfully" }
+```
+
+### Error Responses
+```json
+{ "success": false, "error": "Invalid request method" }
+{ "error": "Bad Request", "details": "Missing required field(s)" }
+{ "success": false, "error": "Database error: <error message>" }
+{ "error": "Unauthorized" }
+```
 
 ---
 
@@ -50,11 +77,9 @@ Based strictly on the SQL in the provided file, the following fields are used:
 Returns all inventory records.
 
 ### Request
-
 No request body required.
 
 ### Success Response
-
 ```json
 {
   "success": true,
@@ -62,17 +87,17 @@ No request body required.
     {
       "id": 1,
       "quant_instock": 50,
-      "ficha": 123,
-      "sku": "ABC-001",
-      "description": "Sample item",
-      "uom_primary": "pcs",
-      "piece_count": 10,
-      "length_inches": 12.5,
-      "width_inches": 8.0,
-      "height_inches": 4.0,
-      "weight_lbs": 2.3,
-      "assembly": "Yes",
-      "rate": 1.25,
+      "ficha": 101,
+      "sku": "SKU-001",
+      "description": "Red Chair",
+      "uom_primary": "EA",
+      "piece_count": 1,
+      "length_inches": 24.5,
+      "width_inches": 18.0,
+      "height_inches": 36.0,
+      "weight_lbs": 15.5,
+      "assembly": "No",
+      "rate": 99.99,
       "time_stamp": "2026-02-25 10:00:00"
     }
   ]
@@ -80,7 +105,6 @@ No request body required.
 ```
 
 ### No Records Found
-
 ```json
 {
   "success": false,
@@ -89,13 +113,6 @@ No request body required.
 ```
 
 Note: This error message is misleading. It is returned when zero records exist, not when the HTTP method is invalid.
-
-### Example
-
-```bash
-curl -X GET "<BASE_URL>/inventory.php" \
-  -H "Accept: application/json"
-```
 
 ---
 
@@ -109,24 +126,23 @@ Creates a new inventory record.
 {
   "id": 1,
   "quant_instock": 50,
-  "ficha": 123,
-  "sku": "ABC-001",
-  "description": "Sample item",
-  "uom_primary": "pcs",
-  "piece_count": 10,
-  "length_inches": 12.5,
-  "width_inches": 8.0,
-  "height_inches": 4.0,
-  "weight_lbs": 2.3,
-  "assembly": "Yes",
-  "rate": 1.25
+  "ficha": 101,
+  "sku": "SKU-001",
+  "description": "Red Chair",
+  "uom_primary": "EA",
+  "piece_count": 1,
+  "length_inches": 24.5,
+  "width_inches": 18.0,
+  "height_inches": 36.0,
+  "weight_lbs": 15.5,
+  "assembly": "No",
+  "rate": 99.99
 }
 ```
 
 ### Missing Required Fields
 
 HTTP 400
-
 ```json
 {
   "error": "Bad Request",
@@ -137,7 +153,6 @@ HTTP 400
 ### Success Response
 
 HTTP 201
-
 ```json
 {
   "success": true,
@@ -148,7 +163,6 @@ HTTP 201
 ### Database Error
 
 May return HTTP 200 with:
-
 ```json
 {
   "success": false,
@@ -160,8 +174,6 @@ Note: The code does not explicitly set a non-200 status code for database failur
 
 ---
 
-## Implementation Notes
+## Unsupported Methods
 
-- `time_stamp` is automatically set using `NOW()` during insertion.
-- Only GET and POST are implemented.
-- Other HTTP methods are not handled and may result in default server behavior.
+Only GET and POST are implemented in the provided code. Other HTTP methods are not handled explicitly and may result in default server behavior.
