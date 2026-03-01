@@ -1,20 +1,35 @@
 <?php
+    session_start();
+    set_error_handler(function($errno, $errstr, $errfile, $errline) {
+        echo json_encode(['error' => $errstr, 'file' => $errfile, 'line' => $errline]);
+        exit;
+    });
 
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
-    require_once '../db.php';
-    require_once '../lib/orders.php';
-    require_once '../auth.php';
-    check_api_key($env);
 
-    // comment out the auth and env stuff if you want to test without the API KEY
-    
+    include '../db.php';
+    include '../lib/orders.php';
+    include '../auth.php';
+
+    $has_session = isset($_SESSION['username']);
+    $headers     = getallheaders();
+    $has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
+
+    if ($has_session) {
+        // internal — session is enough
+    } elseif ($has_api_key) {
+        check_api_key($env);
+    } else {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+
     $method = $_SERVER['REQUEST_METHOD'];
 
     if ($method === 'GET') {
-        // echo json_encode(['success' => true, 'data' => $message]);
-
-        $sql = "SELECT * FROM orders";
+        $sql    = "SELECT * FROM orders";
         $result = $conn->query($sql);
 
         if ($result->num_rows > 0) {
@@ -26,13 +41,12 @@
         } else {
             echo json_encode(['success' => false, 'error' => 'No orders found']);
         }
-        
+
     } elseif ($method === 'POST') {
-        // get data from other team
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data   = json_decode(file_get_contents('php://input'), true);
         $action = $data['action'] ?? 'create';
 
-        if ($action === 'confirm') {
+        if ($action === 'ship') {
             $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
 
             if (!$order_id) {
@@ -41,39 +55,79 @@
                 exit;
             }
 
-            $result = confirm_order($conn, $order_id);
+            $result = ship_order($conn, $order_id);
+
+            if ($result['success']) {
+                $encoded_payload = json_encode([
+                    'order_id' => $order_id,
+                    'status'   => 'shipped'
+                ]);
+
+                $options = [
+                    'http' => [
+                        'method'  => 'POST',
+                        'header'  => "Content-Type: application/json\r\n" .
+                                     "x-api-key: " . $env['X_API_KEY'] . "\r\n",
+                        'content' => $encoded_payload
+                    ]
+                ];
+
+                $context  = stream_context_create($options);
+                $response = file_get_contents('https://theirsite.com/api/orders.php', false, $context);
+            }
+
             http_response_code($result['success'] ? 200 : 422);
             echo json_encode($result);
-            
-            } else {
 
-            if (!isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity'])) {
+        } else {
+            // CREATE order
+            if (!isset($data['reference_numb']) || !isset($data['ship_date']) || !isset($data['trailer_name']) || !isset($data['items'])) {
                 http_response_code(400);
                 echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
                 exit;
+            }
 
-        } else {
-        $id             = $data['order_id'];
-        $ficha          = $data['ficha'];
-        $description1    = $data['description1']; 
-        $description2    = $data['description2']; 
-        $quantity    = $data['quantity']; 
-        $quantity_unit    = $data['quantity_unit']; 
-        $footage_quantity  = $data['footage_quantity']; 
-        
-            $sql = "INSERT INTO orders (ficha, description1, description2, quantity, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?)";
+            $reference_numb = $data['reference_numb'];
+            $ship_date      = $data['ship_date'];
+            $trailer_name   = $data['trailer_name'];
+            $items          = $data['items'];
+
+            $sql  = "INSERT INTO orders (reference_numb, ship_date, trailer_name) VALUES (?, ?, ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("issisi", $ficha, $description1, $description2, $quantity, $quantity_unit, $footage_quantity);
-    
+            $stmt->bind_param("iss", $reference_numb, $ship_date, $trailer_name);
+
             if ($stmt->execute()) {
+                $order_id = $conn->insert_id;
+
+                foreach ($items as $item) {
+                    $ficha            = $item['ficha'] ?? null;
+                    $sku              = $item['sku'] ?? null;
+                    $description      = $item['description'] ?? null;
+                    $quantity         = $item['quantity'] ?? null;
+                    $quantity_unit    = $item['quantity_unit'] ?? null;
+                    $footage_quantity = $item['footage_quantity'] ?? null;
+                    $uom_primary      = $item['uom_primary'] ?? null;
+                    $piece_count      = $item['piece_count'] ?? null;
+                    $length_inches    = $item['length_inches'] ?? null;
+                    $width_inches     = $item['width_inches'] ?? null;
+                    $height_inches    = $item['height_inches'] ?? null;
+                    $weight_lbs       = $item['weight_lbs'] ?? null;
+                    $assembly         = $item['assembly'] ?? null;
+                    $rate             = $item['rate'] ?? null;
+
+                    $sql  = "INSERT INTO orders_items (order_id, ficha, sku, description, quantity, quantity_unit, footage_quantity, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("iiissiisiddddsd", $order_id, $ficha, $sku, $description, $quantity, $quantity_unit, $footage_quantity, $uom_primary, $piece_count, $length_inches, $width_inches, $height_inches, $weight_lbs, $assembly, $rate);
+                    $stmt->execute();
+                }
+
                 http_response_code(201);
-                echo json_encode(['success' => true, 'data' => 'New item created successfully']);
+                echo json_encode(['success' => true, 'data' => 'New order created successfully']);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
             }
         }
-    }
-    
+
     } elseif ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -82,14 +136,9 @@
             exit;
         }
 
-      
-        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE order_id = ?";
-        
+        $sql  = "UPDATE orders SET reference_numb = ?, ship_date = ?, trailer_name = ? WHERE id = ?";
         $stmt = $conn->prepare($sql);
-        
-    
-        $stmt->bind_param("ssisii", $data['description1'], $data['description2'], $data['quantity'],  $data['quantity_unit'],  $data['footage_quantity'],  $data['id']
-    );
+        $stmt->bind_param("issi", $data['reference_numb'], $data['ship_date'], $data['trailer_name'], $data['id']);
 
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Order updated successfully']);
@@ -97,8 +146,7 @@
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }
 
-   } elseif ($method === 'DELETE') {
-
+    } elseif ($method === 'DELETE') {
         $data = json_decode(file_get_contents('php://input'), true);
         $id   = $data['id'] ?? null;
 
@@ -107,7 +155,7 @@
             exit;
         }
 
-        $sql = "DELETE FROM orders WHERE id = ?";
+        $sql  = "DELETE FROM orders WHERE id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $id);
 

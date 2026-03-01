@@ -1,10 +1,27 @@
 <?php 
+    session_start();
+
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
 
-    require_once '../db.php';
-    require_once '../auth.php';
-    check_api_key($env);
+    include '../db.php';
+    include '../lib/mpl.php';
+    include '../auth.php';
+
+    $has_session = isset($_SESSION['username']);
+    $headers     = getallheaders();
+    $has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
+
+    if ($has_session) {
+        // internal — session is enough
+    } elseif ($has_api_key) {
+        check_api_key($env);
+    } else {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+
 
     // comment out the auth and env stuff if you want to test without the API KEY
 

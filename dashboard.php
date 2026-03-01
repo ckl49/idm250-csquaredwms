@@ -2,6 +2,7 @@
   session_start();
   require_once "db.php";
   require_once "lib/inventory.php";
+  require_once "auth.php";
   require_once "lib/orders.php";
   require_once "lib/mpl.php";
   require_once "lib/logout.php";
@@ -62,6 +63,7 @@
                     <tr>
                       <th>ID</th>
                       <th>SKU</th>
+                      <th>FICHA</th>
                       <th>Quantity In Stock</th>
                       <th>Description</th>
                       <th>UOM</th>
@@ -82,6 +84,7 @@
                           echo "<tr>";
                           echo "<td>" . htmlspecialchars($row['inventory_id']) . "</td>";
                           echo "<td>" . htmlspecialchars($row['sku']) . "</td>";
+                          echo "<td>" . htmlspecialchars($row['ficha']) . "</td>";
                           echo "<td>" . htmlspecialchars($row['quant_instock']) . "</td>";
                           echo "<td>" . htmlspecialchars($row['description']) . "</td>";
                           echo "<td>" . htmlspecialchars($row['uom_primary']) . "</td>";
@@ -119,13 +122,12 @@
                 <table class="data-table">
                   <thead>
                     <tr>
-                      <th>FICHA</th>
+                      <th>ID</th>
+                      <th>Reference Number</th>
                       <th>Status</th>
-                      <th>Description 1</th>
-                      <th>Description 2</th>
-                      <th>Quantity</th>
-                      <th>Quantity Unit</th>
-                      <th>Footage</th>
+                      <th>Ship Date</th>
+                      <th>Trailer Name</th>
+                      <th>Number of Items</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -133,37 +135,46 @@
                     <?php
                       if ($orders_array['success']) {
                         foreach ($orders_array['data'] as $row) {
-                          $order_id  = htmlspecialchars($row['orders_id']);
+                          $order_id  = $row['orders_id'];
                           $status    = $row['status'];
-                          $confirmed = $status === 'confirmed';
+                          $confirmed = $status === 'shipped';
 
-                          echo "<tr id='order-row-{$order_id}'>";
-                          echo "<td>" . htmlspecialchars($row['ficha']) . "</td>";
+                          echo "<tr class='order-header-row' onclick='toggleOrderItems({$order_id})'>";
+                          echo "<td>" . htmlspecialchars($order_id) . "</td>";
+                          echo "<td>" . htmlspecialchars($row['reference_numb']) . "</td>";
                           echo "<td class='status-cell-{$order_id}'>" . htmlspecialchars(ucfirst($status)) . "</td>";
-                          echo "<td>" . htmlspecialchars($row['description1']) . "</td>";
-                          echo "<td>" . htmlspecialchars($row['description2']) . "</td>";
-                          echo "<td>" . htmlspecialchars($row['quantity']) . "</td>";
-                          echo "<td>" . htmlspecialchars($row['quantity_unit']) . "</td>";
-                          echo "<td>" . htmlspecialchars($row['footage_quantity']) . "</td>";
+                          echo "<td>" . htmlspecialchars($row['ship_date']) . "</td>";
+                          echo "<td>" . htmlspecialchars($row['trailer_name']) . "</td>";
+                          echo "<td>" . count($row['items']) . " item(s)</td>";
                           echo "<td>";
-                    ?>
-                    <div class="actions-div">
-                      <?php
-                        echo "<a href='edit-form.php?table=orders&id={$order_id}'>Edit</a>";
-                        echo "<a href='delete-form.php?table=orders&id={$order_id}' onclick=\"return confirm('Are you sure you want to delete this record?')\">Delete</a>";
 
-                        // Confirm button 
-                        $disabled = $confirmed ? 'disabled' : '';
-                        $label    = $confirmed ? 'Confirmed' : 'Confirm';
-                        echo "<button class='btn-confirm' data-order-id='{$order_id}' onclick='confirmOrder(this)' {$disabled}>{$label}</button>";
-                      ?>
-                    </div>
-                    <?php
+                          $disabled = $confirmed ? 'disabled' : '';
+                          $label    = $confirmed ? 'Shipped' : 'ship';
+                          echo "<button class='btn-confirm' data-order-id='{$order_id}' onclick='event.stopPropagation(); shipOrder(this)' {$disabled}>{$label}</button>";
                           echo "</td>";
                           echo "</tr>";
+
+                          // Hidden items row
+                          echo "<tr id='order-items-{$order_id}' style='display:none;'>";
+                          echo "<td colspan='7'>";
+                          echo "<table class='data-table'>";
+                          echo "<thead><tr><th>Ficha</th><th>SKU</th><th>Description</th><th>Quantity</th><th>Unit</th><th>Rate</th></tr></thead>";
+                          echo "<tbody>";
+                          foreach ($row['items'] as $item) {
+                              echo "<tr>";
+                              echo "<td>" . htmlspecialchars($item['ficha']) . "</td>";
+                              echo "<td>" . htmlspecialchars($item['sku']) . "</td>";
+                              echo "<td>" . htmlspecialchars($item['description']) . "</td>";
+                              echo "<td>" . htmlspecialchars($item['quantity']) . "</td>";
+                              echo "<td>" . htmlspecialchars($item['quantity_unit']) . "</td>";
+                              echo "<td>" . htmlspecialchars($item['rate']) . "</td>";
+                              echo "</tr>";
+                          }
+                          echo "</tbody></table>";
+                          echo "</td></tr>";
                         }
                       } else {
-                        echo "<tr><td colspan='8'>No records found.</td></tr>";
+                          echo "<tr><td colspan='7'>No records found.</td></tr>";
                       }
                     ?>
                   </tbody>
@@ -179,8 +190,10 @@
         <tr>
           <th>ID</th>
           <th>Order Number</th>
+          <th>Status</th>
           <th>Truck Number</th>
           <th>Expected Delivery</th>
+          <th>Number of Items</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -188,23 +201,43 @@
         <?php
           if ($mpl_array['success']) {
             foreach ($mpl_array['data'] as $row) {
-                echo "<tr>";
-                echo "<td>" . htmlspecialchars($row['mpl_id']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['order_number']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['truck_number']) . "</td>";
-                echo "<td>" . htmlspecialchars($row['expected_delivery']) . "</td>";
-                echo "<td>"; ?>
-                <div class="actions-div">
-                  <?php
-                    echo "<a href='edit-form.php?table=mpl&id=" . htmlspecialchars($row['mpl_id']) . "'>Edit</a>";
-  
-                    echo "<a href='delete-form.php?table=mpl&id=" . htmlspecialchars($row['mpl_id']) . "' onclick=\"return confirm('Are you sure you want to delete this record?')\">Delete</a>";
-                  ?>
-                </div>
-                <?php
-                echo "</td>";
-                echo "</tr>";
-            }
+              $mpl_id   = $row['mpl_id'];
+              $status   = $row['status'];
+              $received = $status === 'received';
+          
+              echo "<tr class='mpl-header-row' onclick='toggleMplItems({$mpl_id})'>";
+              echo "<td>" . htmlspecialchars($mpl_id) . "</td>";
+              echo "<td>" . htmlspecialchars($row['order_number']) . "</td>";
+              echo "<td class='mpl-status-cell-{$mpl_id}'>" . htmlspecialchars(ucfirst($status)) . "</td>";
+              echo "<td>" . htmlspecialchars($row['truck_number']) . "</td>";
+              echo "<td>" . htmlspecialchars($row['expected_delivery']) . "</td>";
+              echo "<td>";
+              echo count($row['items']) . " item(s)";
+              echo "</td>";
+              echo "<td>";
+          
+              $disabled = $received ? 'disabled' : '';
+              $label    = $received ? 'Received' : 'Receive';
+              echo "<button class='btn-confirm' data-mpl-id='{$mpl_id}' onclick='event.stopPropagation(); receiveMpl(this)' {$disabled}>{$label}</button>";
+              echo "</td>";
+              echo "</tr>";
+          
+              // Hidden items row
+              echo "<tr id='mpl-items-{$mpl_id}' style='display:none;'>";
+              echo "<td colspan='7'>";
+              echo "<table class='data-table'>";
+              echo "<thead><tr><th>Ficha</th><th>Quantity</th><th>Description</th></tr></thead>";
+              echo "<tbody>";
+              foreach ($row['items'] as $item) {
+                  echo "<tr>";
+                  echo "<td>" . htmlspecialchars($item['ficha']) . "</td>";
+                  echo "<td>" . htmlspecialchars($item['quantity']) . "</td>";
+                  echo "<td>" . htmlspecialchars($item['description']) . "</td>";
+                  echo "</tr>";
+              }
+              echo "</tbody></table>";
+              echo "</td></tr>";
+          }
         } else {
             echo "<tr><td colspan='12'>No records found.</td></tr>";
         }
@@ -227,40 +260,75 @@
 
   <script src="script.js"></script>
   <script>
-    async function confirmOrder(btn) {
-        const orderId = btn.dataset.orderId;
+    async function shipOrder(btn) {
+      const orderId = btn.dataset.orderId;
 
-        if (!confirm(`Confirm order #${orderId}? This will deduct from inventory.`)) return;
+      if (!confirm(`Ship order #${orderId}? This will deduct from inventory.`)) return;
 
-        btn.disabled    = true;
-        btn.textContent = 'Processing...';
+      btn.disabled    = true;
+      btn.textContent = 'Processing...';
 
-        try {
-          const res = await fetch('api/orders.php', {
+      try {
+        const res = await fetch('api/orders.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'ship', order_id: parseInt(orderId) })
+        });
+
+          const data = await res.json();
+
+          if (data.success) {
+              // Update status cell in place — no page reload needed
+              const statusCell = document.querySelector(`.status-cell-${orderId}`);
+              if (statusCell) statusCell.textContent = 'Shipped';
+              btn.textContent = 'Shipped';
+              showToast(data.message, 'success');
+          } else {
+              btn.disabled    = false;
+              btn.textContent = 'Ship';
+              showToast(data.error, 'error');
+          }
+
+      } catch (err) {
+          btn.disabled    = false;
+          btn.textContent = 'Ship';
+          showToast('Network error — please try again.', 'error');
+          }
+    }
+
+    async function receiveMpl(btn) {
+      const mplId = btn.dataset.mplId;
+
+      if (!confirm(`Receive MPL #${mplId}? This will add to inventory.`)) return;
+
+      btn.disabled    = true;
+      btn.textContent = 'Processing...';
+
+      try {
+          const res = await fetch('api/mpl.php', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'confirm', order_id: parseInt(orderId) })
+              body: JSON.stringify({ action: 'receive', mpl_id: parseInt(mplId) })
           });
 
-            const data = await res.json();
+          const data = await res.json();
 
-            if (data.success) {
-                // Update status cell in place — no page reload needed
-                const statusCell = document.querySelector(`.status-cell-${orderId}`);
-                if (statusCell) statusCell.textContent = 'Confirmed';
-                btn.textContent = 'Confirmed';
-                showToast(data.message, 'success');
-            } else {
-                btn.disabled    = false;
-                btn.textContent = 'Confirm';
-                showToast(data.error, 'error');
-            }
+          if (data.success) {
+              const statusCell = document.querySelector(`.mpl-status-cell-${mplId}`);
+              if (statusCell) statusCell.textContent = 'Received';
+              btn.textContent = 'Received';
+              showToast(data.message, 'success');
+          } else {
+              btn.disabled    = false;
+              btn.textContent = 'Receive';
+              showToast(data.error, 'error');
+          }
 
-        } catch (err) {
-            btn.disabled    = false;
-            btn.textContent = 'Confirm';
-            showToast('Network error — please try again.', 'error');
-        }
+      } catch (err) {
+          btn.disabled    = false;
+          btn.textContent = 'Receive';
+          showToast('Network error — please try again.', 'error');
+      }
     }
 
     function showToast(message, type) {
@@ -270,9 +338,23 @@
         toast.style.display = 'block';
         setTimeout(() => toast.style.display = 'none', 4000);
     }
+    
+    function toggleMplItems(mplId) {
+    const row = document.getElementById(`mpl-items-${mplId}`);
+      if (row) {
+          row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      }
+    }
+
+    function toggleOrderItems(orderId) {
+    const row = document.getElementById(`order-items-${orderId}`);
+      if (row) {
+          row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      }
+    }
   </script>
 
- 
+    
 
   <script src="script.js"></script>
 </body>
