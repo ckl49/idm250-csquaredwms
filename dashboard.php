@@ -14,6 +14,7 @@
   $orders_array = fetch_orders($conn);
   $mpl_array = fetch_mpl($conn);
 
+<<<<<<< Updated upstream
   if (isset($_POST['logout'])) {
     logout();
   }
@@ -23,6 +24,125 @@
   //   die("Query failed: " . $conn->error);
   // }
   // $conn -> close();
+=======
+  function api_request($url, $method, $data = null) {
+    $api_key = "test";
+
+    $options = [
+      'http' => [
+        'method'        => $method,
+        'header'        => "Content-Type: application/json\r\n" .
+                           "x-api-key: " . $api_key . "\r\n",
+        'ignore_errors' => true
+      ]
+    ];
+
+    if ($data !== null) {
+      $options['http']['content'] = json_encode($data);
+    }
+
+    $context  = stream_context_create($options);
+    $response = @file_get_contents($url, false, $context);
+    $result   = json_decode($response, true);
+
+    return $result;
+  }
+
+  function fetch_orders_from_api($conn) {
+    $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
+    $result = api_request($url, 'GET');
+
+    if (!is_array($result) || isset($result['error'])) {
+      return ['success' => false, 'data' => []];
+    }
+
+    $rows = isset($result['data']) && is_array($result['data'])
+              ? $result['data']
+              : $result;
+
+    if (empty($rows) || !isset($rows[0])) {
+      return ['success' => false, 'data' => []];
+    }
+
+    $shipped = [];
+    $shipped_result = $conn->query("SELECT reference_numb FROM orders WHERE status = 'shipped'");
+    if ($shipped_result) {
+      while ($r = $shipped_result->fetch_assoc()) {
+        $shipped[$r['reference_numb']] = true;
+      }
+    }
+
+    $grouped = [];
+
+    foreach ($rows as $row) {
+      if (!is_array($row)) continue;
+
+      $ref = $row['reference_numb'] ?? null;
+      if ($ref === null) continue;
+
+      if (!isset($grouped[$ref])) {
+        $status = isset($shipped[$ref]) ? 'shipped' : ($row['status'] ?? 'draft');
+
+        $grouped[$ref] = [
+          'orders_id'      => $row['id']             ?? '',
+          'reference_numb' => $row['reference_numb'] ?? '',
+          'status'         => $status,
+          'ship_date'      => $row['ship_date']      ?? '',
+          'trailer_name'   => $row['trailer_name']   ?? '',
+          'item_ids'       => [], 
+          'items'          => []
+        ];
+      }
+
+      $grouped[$ref]['item_ids'][] = $row['item_id'] ?? '';
+
+      $grouped[$ref]['items'][] = [
+        'item_id'          => $row['item_id']          ?? '',
+        'inventory_id'     => $row['inventory_id']     ?? '',
+        'ficha'            => $row['ficha']            ?? '',
+        'sku'              => $row['sku']              ?? '',
+        'unit_numb'        => $row['unit_numb']        ?? '',
+        'description1'     => $row['description1']    ?? '',
+        'description2'     => $row['description2']    ?? '',
+        'quantity'         => $row['quantity']         ?? '',
+        'quantity_unit'    => $row['quantity_unit']    ?? '',
+        'footage_quantity' => $row['footage_quantity'] ?? '',
+        'location'         => $row['location']         ?? '',
+        'uom_primary'      => $row['uom_primary']      ?? '',
+      ];
+    }
+
+    if (empty($grouped)) {
+      return ['success' => false, 'data' => []];
+    }
+
+    return ['success' => true, 'data' => array_values($grouped)];
+  }
+
+
+
+  function update_order_on_api($data) {
+    $url = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
+
+    // Validate required fields before sending
+    if (!isset($data['id'], $data['reference_numb'], $data['ship_date'], $data['trailer_name'])) {
+      return ['success' => false, 'error' => 'Missing required fields: id, reference_numb, ship_date, trailer_name'];
+    }
+
+    $payload = [
+      'id'             => intval($data['id']),
+      'reference_numb' => $data['reference_numb'],
+      'ship_date'      => $data['ship_date'],
+      'trailer_name'   => $data['trailer_name']
+    ];
+
+    $result = api_request($url, 'PUT', $payload);
+
+    return is_array($result) ? $result : ['success' => false, 'error' => 'Invalid response from API'];
+  }
+
+  $orders_array = fetch_orders_from_api($conn);
+>>>>>>> Stashed changes
 ?>
 
 <!DOCTYPE html>
@@ -135,6 +255,7 @@
                     </tr>
                   </thead>
                   <tbody>
+<<<<<<< Updated upstream
                     <?php
                       if ($orders_array['success']) {
                         foreach ($orders_array['data'] as $row) {
@@ -171,11 +292,93 @@
                         echo "<tr><td colspan='8'>No records found.</td></tr>";
                       }
                     ?>
+=======
+                    <?php if ($orders_array['success']): ?>
+                      <?php foreach ($orders_array['data'] as $row):
+                        $order_id      = $row['orders_id'];
+                        $status        = $row['status'];
+                        $confirmed     = $status === 'shipped';
+                        $disabled      = $confirmed ? 'disabled' : '';
+                        $label         = $confirmed ? 'Shipped'  : 'Ship';
+                        // Encode item_ids as JSON for the ship button data attribute
+                        $item_ids_json = htmlspecialchars(json_encode($row['item_ids'] ?? []));
+                      ?>
+
+                        <!-- Order header row — click to toggle items -->
+                        <tr class="order-header-row" onclick="toggleOrderItems(<?= $order_id ?>)">
+                          <td><?= htmlspecialchars($order_id)              ?></td>
+                          <td><?= htmlspecialchars($row['reference_numb']) ?></td>
+                          <td class="status-cell-<?= $order_id ?>"><?= htmlspecialchars(ucfirst($status)) ?></td>
+                          <td><?= htmlspecialchars($row['ship_date'])      ?></td>
+                          <td><?= htmlspecialchars($row['trailer_name'])   ?></td>
+                          <td><?= count($row['items']) ?> item(s)</td>
+                          <td>
+                            <button class="btn-confirm"
+                                    data-order-id="<?= $order_id ?>"
+                                    data-item-ids="<?= $item_ids_json ?>"
+                                    data-reference="<?= htmlspecialchars($row['reference_numb']) ?>"
+                                    data-ship-date="<?= htmlspecialchars($row['ship_date']) ?>"
+                                    data-trailer="<?= htmlspecialchars($row['trailer_name']) ?>"
+                                    onclick="event.stopPropagation(); shipOrder(this)"
+                                    <?= $disabled ?>>
+                              <?= $label ?>
+                            </button>
+                          </td>
+                        </tr>
+
+                        <!-- Hidden items sub-table -->
+                        <tr id="order-items-<?= $order_id ?>" style="display:none;">
+                          <td colspan="7">
+                            <table class="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Item ID</th>
+                                  <th>Inventory ID</th>
+                                  <th>Ficha</th>
+                                  <th>SKU</th>
+                                  <th>Unit #</th>
+                                  <th>Description 1</th>
+                                  <th>Description 2</th>
+                                  <th>Quantity</th>
+                                  <th>Unit</th>
+                                  <th>Footage Qty</th>
+                                  <th>Location</th>
+                                  <th>UOM</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <?php foreach ($row['items'] as $item): ?>
+                                  <tr>
+                                    <td><?= htmlspecialchars($item['item_id'])          ?></td>
+                                    <td><?= htmlspecialchars($item['inventory_id'])     ?></td>
+                                    <td><?= htmlspecialchars($item['ficha'])            ?></td>
+                                    <td><?= htmlspecialchars($item['sku'])              ?></td>
+                                    <td><?= htmlspecialchars($item['unit_numb'])        ?></td>
+                                    <td><?= htmlspecialchars($item['description1'])    ?></td>
+                                    <td><?= htmlspecialchars($item['description2'])    ?></td>
+                                    <td><?= htmlspecialchars($item['quantity'])         ?></td>
+                                    <td><?= htmlspecialchars($item['quantity_unit'])    ?></td>
+                                    <td><?= htmlspecialchars($item['footage_quantity']) ?></td>
+                                    <td><?= htmlspecialchars($item['location'])         ?></td>
+                                    <td><?= htmlspecialchars($item['uom_primary'])      ?></td>
+                                  </tr>
+                                <?php endforeach; ?>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                      <?php endforeach; ?>
+                    <?php else: ?>
+                      <tr><td colspan="7">No records found.</td></tr>
+                    <?php endif; ?>
+>>>>>>> Stashed changes
                   </tbody>
                 </table>
               </div>
             </section>
 
+<<<<<<< Updated upstream
 <section id="mplSection">
   <a id="addButton" href="create-form.php?table=mpl" class="nav-button">Add MPL</a>
   <div id="mplTable" class="table-container">
@@ -218,6 +421,88 @@
     </table>
   </div>
 </section>
+=======
+            <!--  MPL  -->
+            <section id="mplSection">
+              <a id="addButton" href="create-form.php?table=mpl" class="nav-button">Add MPL</a>
+              <div id="mplTable" class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Order Number</th>
+                      <th>Status</th>
+                      <th>Truck Number</th>
+                      <th>Expected Delivery</th>
+                      <th>Number of Items</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php if ($mpl_array['success']): ?>
+                      <?php foreach ($mpl_array['data'] as $row):
+                        $mpl_id   = $row['mpl_id'];
+                        $status   = $row['status'];
+                        $received = $status === 'received';
+                        $disabled = $received ? 'disabled' : '';
+                        $label    = $received ? 'Received'  : 'Receive';
+                      ?>
+
+                        <!-- MPL header row — click to toggle items -->
+                        <tr class="mpl-header-row" onclick="toggleMplItems(<?= $mpl_id ?>)">
+                          <td><?= htmlspecialchars($mpl_id)                  ?></td>
+                          <td><?= htmlspecialchars($row['order_number'])      ?></td>
+                          <td class="mpl-status-cell-<?= $mpl_id ?>"><?= htmlspecialchars(ucfirst($status)) ?></td>
+                          <td><?= htmlspecialchars($row['truck_number'])      ?></td>
+                          <td><?= htmlspecialchars($row['expected_delivery']) ?></td>
+                          <td><?= count($row['items']) ?> item(s)</td>
+                          <td>
+                            <button class="btn-confirm"
+                                    data-mpl-id="<?= $mpl_id ?>"
+                                    onclick="event.stopPropagation(); receiveMpl(this)"
+                                    <?= $disabled ?>>
+                              <?= $label ?>
+                            </button>
+                          </td>
+                        </tr>
+
+                        <!-- Hidden items sub-table -->
+                        <tr id="mpl-items-<?= $mpl_id ?>" style="display:none;">
+                          <td colspan="7">
+                            <table class="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Ficha</th>
+                                  <th>Quantity</th>
+                                  <th>Description</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <?php foreach ($row['items'] as $item): ?>
+                                  <tr>
+                                    <td><?= htmlspecialchars($item['ficha'])       ?></td>
+                                    <td><?= htmlspecialchars($item['quantity'])    ?></td>
+                                    <td><?= htmlspecialchars($item['description']) ?></td>
+                                  </tr>
+                                <?php endforeach; ?>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                      <?php endforeach; ?>
+                    <?php else: ?>
+                      <tr><td colspan="7">No records found.</td></tr>
+                    <?php endif; ?>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div id="placeholderContent" class="placeholder-content" style="display:none;">
+              <p class="placeholder-text">Content will be displayed here</p>
+            </div>
+>>>>>>> Stashed changes
 
           <div id="placeholderContent" class="placeholder-content" style="display: none;">
             <p class="placeholder-text">Content will be displayed here</p>
@@ -228,12 +513,24 @@
   </div>
 
 
+<<<<<<< Updated upstream
 <div id="toast"></div>
 
   <script src="script.js"></script>
   <script>
     async function confirmOrder(btn) {
         const orderId = btn.dataset.orderId;
+=======
+    <script src="script.js"></script>
+    <script>
+      // POST to local api/orders.php
+      async function shipOrder(btn) {
+        const orderId   = btn.dataset.orderId;
+        const itemIds   = JSON.parse(btn.dataset.itemIds);
+        const reference = btn.dataset.reference;
+        const shipDate  = btn.dataset.shipDate;
+        const trailer   = btn.dataset.trailer;
+>>>>>>> Stashed changes
 
         if (!confirm(`Confirm order #${orderId}? This will deduct from inventory.`)) return;
 
@@ -241,11 +538,27 @@
         btn.textContent = 'Processing...';
 
         try {
+<<<<<<< Updated upstream
             const res = await fetch('/api/orders.php', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ order_id: parseInt(orderId) })
             });
+=======
+          const res  = await fetch('api/orders.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              action:       'ship',
+              order_id:     parseInt(orderId),
+              item_ids:     itemIds,
+              reference:    reference,
+              ship_date:    shipDate,
+              trailer_name: trailer
+            })
+          });
+          const data = await res.json();
+>>>>>>> Stashed changes
 
             const data = await res.json();
 
@@ -268,16 +581,87 @@
         }
     }
 
+<<<<<<< Updated upstream
     function showToast(message, type) {
         const toast     = document.getElementById('toast');
         toast.textContent = message;
         toast.className   = type;
+=======
+      // PUT through local api/orders.php
+      async function updateOrder(orderId, referenceNumb, shipDate, trailerName) {
+        try {
+          const res  = await fetch('api/orders.php', {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              id:             orderId,
+              reference_numb: referenceNumb,
+              ship_date:      shipDate,
+              trailer_name:   trailerName
+            })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            showToast(data.message || 'Order updated.', 'success');
+          } else {
+            showToast(data.error || 'Update failed.', 'error');
+          }
+        } catch (err) {
+          showToast('Network error — please try again.', 'error');
+        }
+      }
+
+      //POST to local api/mpl.php to recieve mpl and update inventory
+      async function receiveMpl(btn) {
+        const mplId = btn.dataset.mplId;
+        if (!confirm(`Receive MPL #${mplId}? This will add to inventory.`)) return;
+
+        btn.disabled    = true;
+        btn.textContent = 'Processing...';
+
+        try {
+          const res  = await fetch('api/mpl.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ action: 'receive', mpl_id: parseInt(mplId) })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            document.querySelector(`.mpl-status-cell-${mplId}`).textContent = 'Received';
+            btn.textContent = 'Received';
+            showToast(data.message, 'success');
+          } else {
+            btn.disabled    = false;
+            btn.textContent = 'Receive';
+            showToast(data.error, 'error');
+          }
+        } catch (err) {
+          btn.disabled    = false;
+          btn.textContent = 'Receive';
+          showToast('Network error — please try again.', 'error');
+        }
+      }
+
+      function showToast(message, type) {
+        const toast         = document.getElementById('toast');
+        toast.textContent   = message;
+        toast.className     = type;
+>>>>>>> Stashed changes
         toast.style.display = 'block';
         setTimeout(() => toast.style.display = 'none', 4000);
     }
   </script>
 
+<<<<<<< Updated upstream
  
+=======
+      function toggleOrderItems(orderId) {
+        const row = document.getElementById(`order-items-${orderId}`);
+        if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      }
+>>>>>>> Stashed changes
 
   <script src="script.js"></script>
 </body>
