@@ -14,17 +14,6 @@
   $orders_array = fetch_orders($conn);
   $mpl_array = fetch_mpl($conn);
 
-<<<<<<< Updated upstream
-  if (isset($_POST['logout'])) {
-    logout();
-  }
-
-  // $result = $conn -> query("SELECT * FROM inventory");
-  // if (!$result) {
-  //   die("Query failed: " . $conn->error);
-  // }
-  // $conn -> close();
-=======
   function api_request($url, $method, $data = null) {
     $api_key = "test";
 
@@ -142,7 +131,6 @@
   }
 
   $orders_array = fetch_orders_from_api($conn);
->>>>>>> Stashed changes
 ?>
 
 <!DOCTYPE html>
