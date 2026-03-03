@@ -1,10 +1,20 @@
 <?php
-    session_start();
 
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
+    require_once '../db.php';
+    require_once '../lib/orders.php';
+    // require_once '../auth.php';
+    // check_api_key($env);
 
+<<<<<<< Updated upstream
+        // comment out the auth and env stuff if you want to test without the API KEY
+    
+    $method = $_SERVER['REQUEST_METHOD'];
+
+=======
     include '../db.php';
+    include '../lib/orders.php';
     include '../auth.php';
 
     $has_session = isset($_SESSION['username']);
@@ -51,94 +61,188 @@
 
     $method = $_SERVER['REQUEST_METHOD'];
 
-    // GET — from external API
+    // GETfrom external API
+>>>>>>> Stashed changes
     if ($method === 'GET') {
-        $result = call_external_api('GET');
-        http_response_code(isset($result['error']) ? 502 : 200);
-        echo json_encode($result);
+        // echo json_encode(['success' => true, 'data' => $message]);
 
-    // POST — ship or create then goes to external API
+<<<<<<< Updated upstream
+        $sql = "SELECT * FROM orders";
+        $result = $conn->query($sql);
+
+        if ($result->num_rows > 0) {
+            $orders_array = [];
+            while($row = $result->fetch_assoc()) {
+                $orders_array[] = $row;
+=======
+    // ship or create
     } elseif ($method === 'POST') {
         $data   = json_decode(file_get_contents('php://input'), true);
-
         $action = $data['action'] ?? 'create';
 
- if ($action === 'ship') {
-    $item_ids = $data['item_ids'] ?? [];
+        if ($action === 'ship') {
+            $item_ids     = $data['item_ids']     ?? [];
+            $reference    = $data['reference']    ?? '';
+            $ship_date    = $data['ship_date']    ?? '';
+            $trailer_name = $data['trailer_name'] ?? '';
 
-    if (empty($item_ids)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Bad Request', 'details' => 'item_ids are required']);
-        exit;
-    }
+            if (empty($item_ids)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Bad Request', 'details' => 'item_ids are required']);
+                exit;
+            }
 
-    // Update status to 'shipped' in your local orders table for each item_id
-    $errors = [];
+            // DELETE the foreach loop
+            $errors = [];
+            foreach ($item_ids as $id) {
+                $id   = intval($id);
+                $stmt = $conn->prepare("UPDATE inventory SET quant_instock = quant_instock - 1 WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                if (!$stmt->execute()) {
+                    $errors[] = "Failed to update inventory for id {$id}";
+                }
+            }
+            // DELETE
+            $stmt = $conn->prepare("INSERT IGNORE INTO orders (reference_numb, status, ship_date, trailer_name) VALUES (?, 'shipped', ?, ?)");
+            $stmt->bind_param("sss", $reference, $ship_date, $trailer_name);
+            $stmt->execute();
+            // END DELETE
 
-    foreach ($item_ids as $id) {
-        $id   = intval($id);
-        $stmt = $conn->prepare("UPDATE orders SET status = 'shipped' WHERE id = ?");
-        $stmt->bind_param("i", $id);
+            // UNCOMMENT:
+            // $external_result = call_external_api('POST', [
+            //     'reference'      => $reference,
+            //     'date'           => $ship_date,
+            //     'truck'          => $trailer_name,
+            //     'selected_items' => $item_ids
+            // ]);
 
-        if (!$stmt->execute()) {
-            $errors[] = "item_id {$id}: " . $stmt->error;
-        }
-    }
+            http_response_code(empty($errors) ? 200 : 422);
+            echo json_encode(empty($errors)
+                ? ['success' => true,  'message' => 'Order shipped and inventory updated.']
+                : ['success' => false, 'error'   => implode(', ', $errors)]
+            );
 
-    if (!empty($errors)) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'error' => implode(', ', $errors)]);
-    } else {
-        http_response_code(200);
-        echo json_encode(['success' => true, 'message' => 'Order shipped successfully']);
-    }
         } else {
-            // CREATE — validate then go to external API
+            // CREATE — validate then forward to external API
             if (!isset($data['reference_numb'], $data['ship_date'], $data['trailer_name'], $data['items'])) {
                 http_response_code(400);
                 echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
                 exit;
+>>>>>>> Stashed changes
             }
+            echo json_encode(['success' => true, 'data' => $orders_array]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'No orders found']);
+        }
+        
+    } elseif ($method === 'POST') {
+        // get data from other team
+        $data = json_decode(file_get_contents('php://input'), true);
 
+<<<<<<< Updated upstream
+        if (!isset($data['ficha']) || !isset($data['description1']) || !isset($data['description2']) || !isset($data['quantity']) || !isset($data['quantity_unit']) || !isset($data['footage_quantity'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
+            exit;
+=======
             $result = call_external_api('POST', [
-                'action'         => 'create',
-                'reference_numb' => $data['reference_numb'],
-                'ship_date'      => $data['ship_date'],
-                'trailer_name'   => $data['trailer_name'],
-                'items'          => $data['items']
+                'reference'      => $data['reference_numb'],
+                'date'           => $data['ship_date'],
+                'truck'          => $data['trailer_name'],
+                'selected_items' => array_column($data['items'], 'item_id')
             ]);
+>>>>>>> Stashed changes
 
-            http_response_code(isset($result['success']) && $result['success'] ? 201 : 422);
-            echo json_encode($result);
+        } else {
+        $id             = $data['order_id'];
+        $ficha          = $data['ficha'];
+        $description1    = $data['description1']; 
+        $description2    = $data['description2']; 
+        $quantity    = $data['quantity']; 
+        $quantity_unit    = $data['quantity_unit']; 
+        $footage_quantity  = $data['footage_quantity']; 
+        
+            $sql = "INSERT INTO orders (ficha, description1, description2, quantity, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("issisi", $ficha, $description1, $description2, $quantity, $quantity_unit, $footage_quantity);
+    
+            if ($stmt->execute()) {
+                http_response_code(201);
+                echo json_encode(['success' => true, 'data' => 'New item created successfully']);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
+            }
+        }
+        } elseif ($method === 'PATCH') {
+        // Confirm an order — updates order status + deducts from inventory
+        $data     = json_decode(file_get_contents('php://input'), true);
+        $order_id = isset($data['order_id']) ? (int)$data['order_id'] : null;
+
+        if (!$order_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'order_id is required']);
+            exit;
         }
 
-    // PUT — forward update to external API
+<<<<<<< Updated upstream
+        $result = confirm_order($conn, $order_id);
+
+        http_response_code($result['success'] ? 200 : 422);
+        echo json_encode($result);
+=======
+    // forward update to external API
+>>>>>>> Stashed changes
     } elseif ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
 
         if (!isset($data['id'])) {
-            http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'ID is required for update']);
             exit;
         }
 
-        $result = call_external_api('PUT', $data);
-        http_response_code(isset($result['success']) && $result['success'] ? 200 : 422);
-        echo json_encode($result);
+      
+        $sql = "UPDATE orders SET description1 = ?, description2 = ?, quantity = ?, quantity_unit = ?, footage_quantity = ? WHERE order_id = ?";
+        
+        $stmt = $conn->prepare($sql);
+        
+    
+        $stmt->bind_param("ssisii", $data['description1'], $data['description2'], $data['quantity'],  $data['quantity_unit'],  $data['footage_quantity'],  $data['id']
+    );
 
-    // DELETE — forward delete to external API
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Order updated successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
+
+   } elseif ($method === 'DELETE') {
+
+<<<<<<< Updated upstream
+=======
+    // delete to external API
     } elseif ($method === 'DELETE') {
+>>>>>>> Stashed changes
         $data = json_decode(file_get_contents('php://input'), true);
+        $id   = $data['id'] ?? null;
 
-        if (!isset($data['id'])) {
-            http_response_code(400);
+        if (!$id) {
             echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
             exit;
         }
 
-        $result = call_external_api('DELETE', $data);
-        http_response_code(isset($result['success']) && $result['success'] ? 200 : 422);
-        echo json_encode($result);
+        $sql = "DELETE FROM orders WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $id);
+
+        if ($stmt->execute()) {
+            if ($stmt->affected_rows > 0) {
+                echo json_encode(['success' => true, 'message' => "Order $id deleted successfully"]);
+            } else {
+                echo json_encode(['success' => false, 'error' => "No order found with ID $id"]);
+            }
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
 
     } else {
         http_response_code(405);
