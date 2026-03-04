@@ -1,78 +1,133 @@
-<?php 
-    session_start();
+<?php
+ini_set('display_errors', 1); error_reporting(E_ALL);
+session_start();
 
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
-    include '../db.php';
-    include '../lib/mpl.php';
-    include '../auth.php';
+include '../db.php';
+include '../auth.php';
 
-    $has_session = isset($_SESSION['username']);
-    $headers     = getallheaders();
-    $has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
+$has_session = isset($_SESSION['username']);
+$headers     = getallheaders();
+$has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
 
-    if ($has_session) {
-        // internal — session is enough
-    } elseif ($has_api_key) {
-        check_api_key($env);
+if ($has_session) {
+    // internal — session is enough
+} elseif ($has_api_key) {
+    check_api_key($env);
+} else {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+// ── GET: return all inventory ──────────────────────────────────────────────
+if ($method === 'GET') {
+    $sql    = "SELECT id AS inventory_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity FROM inventory";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        $rows = [];
+        while ($row = $result->fetch_assoc()) $rows[] = $row;
+        echo json_encode(['success' => true, 'data' => $rows]);
     } else {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
+        echo json_encode(['success' => false, 'error' => 'No inventory records found']);
+    }
+
+// ── POST: insert new inventory item ───────────────────────────────────────
+} elseif ($method === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    $required = ['ficha', 'sku', 'quantity', 'description1', 'quantity_unit', 'footage_quantity'];
+    foreach ($required as $field) {
+        if (!isset($data[$field])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => "Missing required field: $field"]);
+            exit;
+        }
+    }
+
+    $ficha            = $data['ficha'];
+    $sku              = $data['sku'];
+    $quantity         = (int)$data['quantity'];
+    $description1     = $data['description1'];
+    $description2     = $data['description2'] ?? '';
+    $quantity_unit    = $data['quantity_unit'];
+    $footage_quantity = (float)$data['footage_quantity'];
+
+    $stmt = $conn->prepare(
+        "INSERT INTO inventory (ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
+    );
+    $stmt->bind_param("ssississd",
+        $ficha, $sku, $quantity, $description1, $description2, $quantity_unit, $footage_quantity);
+
+    if ($stmt->execute()) {
+        http_response_code(201);
+        echo json_encode(['success' => true, 'message' => 'Item created', 'id' => $conn->insert_id]);
+    } else {
+        echo json_encode(['success' => false, 'error' => $stmt->error]);
+    }
+
+// ── PUT: update existing inventory item ───────────────────────────────────
+} elseif ($method === 'PUT') {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    if (!isset($data['id'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing required field: id']);
         exit;
     }
 
+    $id               = (int)$data['id'];
+    $ficha            = $data['ficha']            ?? null;
+    $sku              = $data['sku']              ?? null;
+    $quantity         = isset($data['quantity'])         ? (int)$data['quantity']         : null;
+    $description1     = $data['description1']     ?? null;
+    $description2     = $data['description2']     ?? null;
+    $quantity_unit    = $data['quantity_unit']    ?? null;
+    $footage_quantity = isset($data['footage_quantity']) ? (float)$data['footage_quantity'] : null;
 
-    // comment out the auth and env stuff if you want to test without the API KEY
+    $stmt = $conn->prepare(
+        "UPDATE inventory SET
+            ficha = ?, sku = ?, quantity = ?, description1 = ?,
+            description2 = ?, quantity_unit = ?, footage_quantity = ?
+         WHERE id = ?"
+    );
+    $stmt->bind_param("ssisssdi",
+        $ficha, $sku, $quantity, $description1,
+        $description2, $quantity_unit, $footage_quantity, $id);
 
-    $method = $_SERVER['REQUEST_METHOD'];
-
-    if ($method === 'GET') {
-        // echo json_encode(['success' => true, 'data' => $message]);
-
-        $sql = "SELECT * FROM inventory";
-        $result = $conn->query($sql);
-
-        if ($result->num_rows > 0) {
-            $inventory_array = [];
-            while($row = $result->fetch_assoc()) {
-                $inventory_array[] = $row;
-            }
-            echo json_encode(['success' => true, 'data' => $inventory_array]);
-
-        } else {
-            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
-        }
-        
-    } elseif ($method === 'POST') {
-        // echo json_encode(value: ['success' => true, 'data' => 'POST request received']);
-        $data = json_decode(file_get_contents('php://input'), true);
-
-        if (!isset($data['id']) || !isset($data['ficha']) || !isset($data['sku']) || !isset($data['description']) || !isset($data['uom_primary']) || !isset($data['piece_count']) || !isset($data['length_inches']) || !isset($data['width_inches']) || !isset($data['height_inches']) || !isset($data['weight_lbs']) || !isset($data['assembly']) || !isset($data['rate'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
-            exit;
-
-        } else {
-        $id             = $data['inventory_id'];
-        $quantity = $data['quantity'];
-        $ficha          = $data['ficha'];
-        $sku            = $data['sku'];
-        $description1    = $data['description1']; 
-        $description2    = $data['description2']; 
-        $quantity_unit = $data['quantity_unit'];
-        $footage_quantity = $data['footage_quantity'];
-
-            $sql = "INSERT INTO inventory (id, quantity, ficha, sku, description1, description2, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iiisssii", $id, $quantity, $ficha, $sku, $description1, $description2, $quantity_unit, $footage_quantity);
-
-            if ($stmt->execute()) {
-                http_response_code(201);
-                echo json_encode(['success' => true, 'data' => 'New item created successfully']);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
-            }
-        }
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Item updated']);
+    } else {
+        echo json_encode(['success' => false, 'error' => $stmt->error]);
     }
-?>
+
+// ── DELETE ─────────────────────────────────────────────────────────────────
+} elseif ($method === 'DELETE') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $id   = isset($data['id']) ? (int)$data['id'] : null;
+
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing required field: id']);
+        exit;
+    }
+
+    $stmt = $conn->prepare("DELETE FROM inventory WHERE id = ?");
+    $stmt->bind_param("i", $id);
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Item deleted']);
+    } else {
+        echo json_encode(['success' => false, 'error' => $stmt->error]);
+    }
+
+} else {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+}
