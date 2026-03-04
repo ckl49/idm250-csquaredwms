@@ -20,7 +20,6 @@
 // }
 
 function showPage(pageName) {
-
   const pages = document.querySelectorAll('.page');
   pages.forEach(page => page.classList.remove('active'));
 
@@ -31,72 +30,71 @@ function showPage(pageName) {
 }
 
 function navigate(section) {
-  // NAV BUTTON
-  const navButtons = document.querySelectorAll('.nav-button');
-  navButtons.forEach(btn => btn.classList.remove('active'));
-  // document.getElementById('addButton').href = `create-form.php?table=${table}`;
-  
-
-  navButtons.forEach(btn => {
-    if (btn.textContent.toLowerCase() === section) {
-      btn.classList.add('active');
-    }
+  // Hide all sections
+  const sections = ['ordersSection', 'inventorySection', 'mplSection', 'skusSection', 'placeholderContent'];
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
   });
-  
-  // UPDATE TITLE
-  const contentTitle = document.getElementById('contentTitle');
-  contentTitle.textContent = section.charAt(0).toUpperCase() + section.slice(1);
-  
-  const ordersTable = document.getElementById('ordersSection');
-  const inventoryTable = document.getElementById('inventorySection');
-  const placeholderContent = document.getElementById('placeholderContent');
-  const mplTable = document.getElementById('mplSection');
-  
-  if (section === 'orders') {
-    placeholderContent.style.display = 'none';
-    ordersTable.style.display = 'flex';
-    inventoryTable.style.display = 'none';
-    mplTable.style.display = 'none';
 
-  } else if (section === 'inventory') {
-    ordersTable.style.display = 'none';
-    placeholderContent.style.display = 'none'; // fix this
-    inventoryTable.style.display = 'flex';
-    mplTable.style.display = 'none';
-    
-  } else if (section === 'mpl') {
-    ordersTable.style.display = 'none';
-    placeholderContent.style.display = 'none';
-    inventoryTable.style.display = 'none';
-    mplTable.style.display = 'flex';
+  // Show the requested section
+  const sectionIds = {
+    inventory: 'inventorySection',
+    orders:    'ordersSection',
+    mpl:       'mplSection',
+    skus:      'skusSection'
+  };
+
+  const targetId = sectionIds[section];
+  if (targetId) {
+    const el = document.getElementById(targetId);
+    if (el) el.style.display = 'flex';
   }
+
+  // Update title
+  const titleMap = {
+    inventory: 'Inventory',
+    orders:    'Orders',
+    mpl:       'MPL',
+    skus:      'SKU Management'
+  };
+
+  const contentTitle = document.getElementById('contentTitle');
+  if (contentTitle) {
+    contentTitle.textContent = titleMap[section] || section.charAt(0).toUpperCase() + section.slice(1);
+  }
+
+  // Update active nav button
+  const navButtons = document.querySelectorAll('.nav-button');
+  navButtons.forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim().toLowerCase() === (titleMap[section] || section).toLowerCase());
+  });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  navigate('inventory'); // Default to inventory page on load
-})
+  // Check if URL says to open a specific section
+  const params = new URLSearchParams(window.location.search);
+  const section = params.get('section') || 'inventory';
+  navigate(section);
 
-
-document.addEventListener('DOMContentLoaded', function() {
-
-  const passwordInput = document.getElementById('password');
-  const usernameInput = document.getElementById('username');
-  
-  if (passwordInput) {
-    passwordInput.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        login();
-      }
-    });
-  }
-  
-  if (usernameInput) {
-    usernameInput.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        login();
-      }
-    });
+  if (params.get('sku_added')) {
+    setTimeout(() => showToast('SKU added successfully.', 'success'), 100);
   }
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordInput = document.getElementById('password');
+  const usernameInput = document.getElementById('username');
 
+  if (passwordInput) {
+    passwordInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+  }
+
+  if (usernameInput) {
+    usernameInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+  }
+});
