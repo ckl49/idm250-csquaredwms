@@ -1,143 +1,140 @@
-<?php 
-    session_start();
+<?php
+ini_set('display_errors', 1); error_reporting(E_ALL);
 
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
+session_start();
 
-    include '../db.php';
-    include '../lib/mpl.php';
-    include '../auth.php';
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
-    $has_session = isset($_SESSION['username']);
-    $headers     = getallheaders();
-    $has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
+include '../db.php';
+include '../lib/mpl.php';
+include '../auth.php';
 
-    if ($has_session) {
-        // internal — session is enough
-    } elseif ($has_api_key) {
-        check_api_key($env);
+$env = file_exists('../.env') ? parse_ini_file('../.env') : [];
+
+$has_session = isset($_SESSION['username']);
+$headers     = getallheaders();
+$has_api_key = isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
+
+if ($has_session) {
+    // internal — session is enough
+} elseif ($has_api_key) {
+    check_api_key($env);
+} else {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+$method = $_SERVER['REQUEST_METHOD'];
+
+// ── GET: fetch live from external API ────────────────────────────────────────
+if ($method === 'GET') {
+    $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php";
+    $opts   = ['http' => ['method' => 'GET', 'header' => "x-api-key: test\r\n", 'ignore_errors' => true]];
+    $result = json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
+
+    if (!empty($result['data'])) {
+        echo json_encode(['success' => true, 'data' => $result['data']]);
     } else {
-        http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
-        exit;
+        echo json_encode(['success' => false, 'error' => 'No MPL records found']);
     }
 
-    $method = $_SERVER['REQUEST_METHOD'];
+// ── POST ─────────────────────────────────────────────────────────────────────
+} elseif ($method === 'POST') {
+    $data   = json_decode(file_get_contents('php://input'), true);
+    $action = $data['action'] ?? 'create';
 
-    if ($method === 'GET') {
-        $sql    = "SELECT * FROM mpl";
-        $result = $conn->query($sql);
+    if ($action === 'receive') {
+        $mpl_id = isset($data['mpl_id']) ? (int)$data['mpl_id'] : null;
 
-        if ($result->num_rows > 0) {
-            $mpl_array = [];
-            while ($row = $result->fetch_assoc()) {
-                $mpl_array[] = $row;
-            }
-            echo json_encode(['success' => true, 'data' => $mpl_array]);
-        } else {
-            echo json_encode(['success' => false, 'error' => 'No MPL records found']);
-        }
-
-    } elseif ($method === 'POST') {
-        $data   = json_decode(file_get_contents('php://input'), true);
-        $action = $data['action'] ?? 'create';
-
-        if ($action === 'receive') {
-            $mpl_id = isset($data['mpl_id']) ? (int)$data['mpl_id'] : null;
-
-            if (!$mpl_id) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Bad Request', 'details' => 'mpl_id is required']);
-                exit;
-            }
-
-            $result = receive_mpl($conn, $mpl_id);
-
-            if ($result['success']) {
-                $encoded_payload = json_encode([
-                    'mpl_id' => $mpl_id,
-                    'status' => 'received'
-                ]);
-
-                $options = [
-                    'http' => [
-                        'method'  => 'POST',
-                        'header'  => "Content-Type: application/json\r\n" .
-                                     "x-api-key: " . $env['X_API_KEY'] . "\r\n",
-                        'content' => $encoded_payload
-                    ]
-                ];
-
-                $context  = stream_context_create($options);
-                $response = file_get_contents('https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php', false, $context);
-            }
-
-            http_response_code($result['success'] ? 200 : 422);
-            echo json_encode($result);
-
-        } else {
-            // CREATE — receiving MPL from supplier
-            if (!isset($data['order_number']) || !isset($data['truck_number']) || !isset($data['expected_delivery'])) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
-                exit;
-            }
-
-            $order_number      = $data['order_number'];
-            $truck_number      = $data['truck_number'];
-            $expected_delivery = $data['expected_delivery'];
-            $units             = $data['units'] ?? [];
-
-            $sql  = "INSERT INTO mpl (order_number, truck_number, expected_delivery) VALUES (?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iis", $order_number, $truck_number, $expected_delivery);
-
-            if ($stmt->execute()) {
-                $mpl_id = $conn->insert_id;
-
-                foreach ($units as $unit) {
-                    $ficha       = $unit['ficha'] ?? null;
-                    $quantity    = $unit['quantity'] ?? null;
-                    $description = $unit['description'] ?? null;
-
-                    $sql  = "INSERT INTO mpl_items (mpl_id, ficha, quantity, description) VALUES (?, ?, ?, ?)";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("iiis", $mpl_id, $ficha, $quantity, $description);
-                    $stmt->execute();
-                }
-
-                http_response_code(201);
-                echo json_encode(['success' => true, 'data' => 'New MPL created successfully']);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
-            }
-        }
-
-    } elseif ($method === 'DELETE') {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $id   = $data['id'] ?? null;
-
-        if (!$id) {
-            echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
+        if (!$mpl_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'mpl_id is required']);
             exit;
         }
 
-        $sql  = "DELETE FROM mpl WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $id);
+        $result = receive_mpl($conn, $mpl_id);
 
-        if ($stmt->execute()) {
-            if ($stmt->affected_rows > 0) {
-                echo json_encode(['success' => true, 'message' => "MPL $id deleted successfully"]);
-            } else {
-                echo json_encode(['success' => false, 'error' => "No MPL found with ID $id"]);
-            }
-        } else {
-            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        // Notify external API only if receive succeeded
+        if ($result['success']) {
+            $api_key = $env['X_API_KEY'] ?? 'test';
+
+            $options = [
+                'http' => [
+                    'method'        => 'POST',
+                    'header'        => "Content-Type: application/json\r\n" .
+                                       "x-api-key: $api_key\r\n",
+                    'content'       => json_encode(['mpl_id' => $mpl_id, 'status' => 'received']),
+                    'ignore_errors' => true
+                ]
+            ];
+
+            file_get_contents(
+                'https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php',
+                false,
+                stream_context_create($options)
+            );
         }
 
+        http_response_code($result['success'] ? 200 : 422);
+        echo json_encode($result);
+
     } else {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method Not Allowed']);
+        // CREATE
+        if (!isset($data['reference_numb']) || !isset($data['trailer_name']) || !isset($data['ship_date'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s): reference_numb, trailer_name, ship_date']);
+            exit;
+        }
+
+        $reference_numb = $data['reference_numb'];
+        $trailer_name   = $data['trailer_name'];
+        $ship_date      = $data['ship_date'];
+        $items          = $data['items'] ?? [];
+
+        $stmt = $conn->prepare("INSERT INTO mpl (reference_numb, trailer_name, ship_date, status) VALUES (?, ?, ?, 'draft')");
+        $stmt->bind_param("sss", $reference_numb, $trailer_name, $ship_date);
+
+        if ($stmt->execute()) {
+            foreach ($items as $item) {
+                $item_id = $item['item_id'] ?? null;
+                $stmt2   = $conn->prepare("UPDATE mpl SET item_id = ? WHERE reference_numb = ? AND item_id IS NULL LIMIT 1");
+                $stmt2->bind_param("is", $item_id, $reference_numb);
+                $stmt2->execute();
+            }
+
+            http_response_code(201);
+            echo json_encode(['success' => true, 'message' => 'MPL created successfully']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Database error: ' . $stmt->error]);
+        }
     }
-?>
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+} elseif ($method === 'DELETE') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $id   = $data['id'] ?? null;
+
+    if (!$id) {
+        echo json_encode(['success' => false, 'error' => 'ID is required for deletion']);
+        exit;
+    }
+
+    $stmt = $conn->prepare("DELETE FROM mpl WHERE id = ?");
+    $stmt->bind_param("i", $id);
+
+    if ($stmt->execute()) {
+        if ($stmt->affected_rows > 0) {
+            echo json_encode(['success' => true, 'message' => "MPL $id deleted successfully"]);
+        } else {
+            echo json_encode(['success' => false, 'error' => "No MPL found with ID $id"]);
+        }
+    } else {
+        echo json_encode(['success' => false, 'error' => $stmt->error]);
+    }
+
+} else {
+    http_response_code(405);
+    echo json_encode(['error' => 'Method Not Allowed']);
+}

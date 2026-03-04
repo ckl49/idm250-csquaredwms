@@ -67,7 +67,7 @@
                         <input class="form-input" type="password" id="password" name="password">
                     </div>
                 
-                    <button class="login-button" type="submit" name="login" value="submit">Log In</button>
+                    <div class="login-button-div"><button class="login-button" type="submit" name="login" value="submit">Log In</button></div>
                 </form>
             </div>
         </div>

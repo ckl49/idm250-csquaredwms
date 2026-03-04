@@ -469,18 +469,17 @@ exit;
               </div>
             </section>
 
-            <!--  MPL  -->
-            <section id="mplSection" style="display:none;">
-              <a id="addButton" href="create-form.php?table=mpl" class="nav-button">Add MPL</a>
+             <!--  MPL  -->
+             <section id="mplSection" style="display:none;">
               <div id="mplTable" class="table-container">
                 <table class="data-table">
                   <thead>
                     <tr>
                       <th>ID</th>
-                      <th>Order Number</th>
+                      <th>Reference Number</th>
                       <th>Status</th>
-                      <th>Truck Number</th>
-                      <th>Expected Delivery</th>
+                      <th>Trailer Name</th>
+                      <th>Ship Date</th>
                       <th>Number of Items</th>
                       <th>Actions</th>
                     </tr>
@@ -492,14 +491,15 @@ exit;
                         $status   = $row['status'];
                         $received = $status === 'received';
                         $disabled = $received ? 'disabled' : '';
-                        $label    = $received ? 'Received'  : 'Receive';
+                        $label    = $received ? 'Received' : 'Receive';
                       ?>
+
                         <tr class="mpl-header-row" onclick="toggleMplItems(<?= $mpl_id ?>)">
                           <td><?= htmlspecialchars($mpl_id)                  ?></td>
-                          <td><?= htmlspecialchars($row['order_number'])      ?></td>
+                          <td><?= htmlspecialchars($row['reference_numb'])   ?></td>
                           <td class="mpl-status-cell-<?= $mpl_id ?>"><?= htmlspecialchars(ucfirst($status)) ?></td>
-                          <td><?= htmlspecialchars($row['truck_number'])      ?></td>
-                          <td><?= htmlspecialchars($row['expected_delivery']) ?></td>
+                          <td><?= htmlspecialchars($row['trailer_name'])     ?></td>
+                          <td><?= htmlspecialchars($row['ship_date'])        ?></td>
                           <td><?= count($row['items']) ?> item(s)</td>
                           <td>
                             <button class="btn-confirm"
@@ -510,24 +510,40 @@ exit;
                             </button>
                           </td>
                         </tr>
+
                         <tr id="mpl-items-<?= $mpl_id ?>" style="display:none;">
                           <td colspan="7">
                             <table class="data-table">
                               <thead>
-                                <tr><th>Ficha</th><th>Quantity</th><th>Description</th></tr>
+                                <tr>
+                                  <th>Item ID</th>
+                                  <th>Ficha</th>
+                                  <th>Unit #</th>
+                                  <th>Description 1</th>
+                                  <th>Description 2</th>
+                                  <th>Quantity</th>
+                                  <th>Quantity Unit</th>
+                                  <th>Footage Qty</th>
+                                </tr>
                               </thead>
                               <tbody>
                                 <?php foreach ($row['items'] as $item): ?>
                                   <tr>
-                                    <td><?= htmlspecialchars($item['ficha'])       ?></td>
-                                    <td><?= htmlspecialchars($item['quantity'])    ?></td>
-                                    <td><?= htmlspecialchars($item['description']) ?></td>
+                                    <td><?= htmlspecialchars($item['item_id'])          ?></td>
+                                    <td><?= htmlspecialchars($item['ficha'])            ?></td>
+                                    <td><?= htmlspecialchars($item['unit_numb'])        ?></td>
+                                    <td><?= htmlspecialchars($item['description1'])     ?></td>
+                                    <td><?= htmlspecialchars($item['description2'])     ?></td>
+                                    <td><?= htmlspecialchars($item['quantity'])         ?></td>
+                                    <td><?= htmlspecialchars($item['quantity_unit'])    ?></td>
+                                    <td><?= htmlspecialchars($item['footage_quantity']) ?></td>
                                   </tr>
                                 <?php endforeach; ?>
                               </tbody>
                             </table>
                           </td>
                         </tr>
+
                       <?php endforeach; ?>
                     <?php else: ?>
                       <tr><td colspan="7">No records found.</td></tr>
