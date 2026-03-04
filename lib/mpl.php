@@ -1,56 +1,52 @@
 <?php 
    function fetch_mpl($conn) {
     $sql = "SELECT 
-                m.id AS mpl_id,
-                m.item_id,
-                m.reference_numb,
-                m.ship_date,
-                m.trailer_name,
-                i.status,
+                m.id              AS mpl_id,
+                m.order_number,
+                m.truck_number,
+                m.expected_delivery,
+                m.status,
+                i.id              AS item_id,
+                i.ficha,
+                i.quantity,
+                i.description
             FROM mpl m
-            LEFT JOIN inventory_item_info i ON m.id = i.mpl_id
+            LEFT JOIN mpl_items i ON m.id = i.mpl_id
             ORDER BY m.id";
-    
-        $result = $conn->query($sql);
-    
-        if ($result->num_rows > 0) {
-            $mpl_array = [];
-            while ($row = $result->fetch_assoc()) {
-                $mpl_id = $row['mpl_id'];
-    
-                // Group items under their parent MPL
-                if (!isset($mpl_array[$mpl_id])) {
-                    $mpl_array[$mpl_id] = [
-                        'mpl_id'            => $mpl_id,
-                        'reference_numb'    => $row['reference_numb'],
-                        'trailer_name'      => $row['trailer_name'],
-                        'ship_date'         => $row['ship_date'],
-                        'status'            => $row['status'],
-                        'items'             => []
-                    ];
-                }
-    
-                // Add item if it exists
-                if ($row['item_id']) {
-                    $mpl_array[$mpl_id]['items'][] = [
-                        'item_id'       => $row['inventory_id'],
-                        'sku'           => $row['sku'],
-                        'unit_numb'     => $row['unit_numb'],
-                        'ficha'         => $row['ficha'],
-                        'description1'   => $row['description1'],
-                        'description2'   => $row['description2'],
-                        'quantity'      => $row['quantity'],
-                        'quantity_unit' => $row['quantity_unit'],
-                        'footage_quantity'  => $row['footage_quantity'],
-                    ];
-                }
+
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        $mpl_array = [];
+        while ($row = $result->fetch_assoc()) {
+            $mpl_id = $row['mpl_id'];
+
+            if (!isset($mpl_array[$mpl_id])) {
+                $mpl_array[$mpl_id] = [
+                    'mpl_id'            => $mpl_id,
+                    'order_number'      => $row['order_number'],
+                    'truck_number'      => $row['truck_number'],
+                    'expected_delivery' => $row['expected_delivery'],
+                    'status'            => $row['status'],
+                    'items'             => []
+                ];
             }
-    
-            return ['success' => true, 'data' => array_values($mpl_array)];
-        } else {
-            return ['success' => false, 'error' => 'No MPL records found'];
+
+            if ($row['item_id']) {
+                $mpl_array[$mpl_id]['items'][] = [
+                    'item_id'     => $row['item_id'],
+                    'ficha'       => $row['ficha'],
+                    'quantity'    => $row['quantity'],
+                    'description' => $row['description']
+                ];
+            }
         }
+
+        return ['success' => true, 'data' => array_values($mpl_array)];
+    } else {
+        return ['success' => false, 'error' => 'No MPL records found'];
     }
+}
 
 
     function receive_mpl($conn, $mpl_id) {
