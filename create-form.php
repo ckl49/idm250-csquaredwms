@@ -96,13 +96,13 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
         <?php if ($table === 'inventory'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="inventory">
-            <div class="input-div"><label>FICHA</label><input name="ficha" type="text" required></div>
-            <div class="input-div"><label>SKU</label><input name="sku" type="text" required></div>
-            <div class="input-div"><label>Quantity</label><input name="quantity" type="number" required></div>
-            <div class="input-div"><label>Description 1</label><input name="description1" type="text" required></div>
-            <div class="input-div"><label>Description 2</label><input name="description2" type="text"></div>
-            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" type="text"></div>
-            <div class="input-div"><label>Footage Quantity</label><input name="footage_quantity" type="number" step="any"></div>
+            <div class="input-div"><label>FICHA</label><input name="ficha" placeholder="ex: 452" type="text" required></div>
+            <div class="input-div"><label>SKU</label><input name="sku" placeholder="ex: 1720823-0567" type="text" required></div>
+            <div class="input-div"><label>Quantity</label><input name="quantity" placeholder="ex: 100" type="number" required></div>
+            <div class="input-div"><label>Description 1</label><input name="description1" placeholder="ex: BIRCH YEL FAS 6/4 RGH KD 10FT" type="text" required></div>
+            <div class="input-div"><label>Description 2</label><input name="description2" placeholder="ex: Medex FSCMC 120" type="text"></div>
+            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" placeholder="ex: PC" type="text"></div>
+            <div class="input-div"><label>Footage Quantity</label><input name="ex: footage_quantity" type="number" placeholder="ex: 1320.28" step="any"></div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
                 <button type="submit" class="form-save-btn">Add Item</button>
@@ -112,12 +112,12 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
         <?php elseif ($table === 'orders'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="orders">
-            <div class="input-div"><label>FICHA</label><input name="ficha" type="number" required></div>
-            <div class="input-div"><label>Description 1</label><input name="description1" type="text" required></div>
-            <div class="input-div"><label>Description 2</label><input name="description2" type="text"></div>
-            <div class="input-div"><label>Quantity</label><input name="quantity" type="number" required></div>
-            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" type="text"></div>
-            <div class="input-div"><label>Footage Quantity</label><input name="footage_quantity" type="number" step="any"></div>
+            <div class="input-div"><label>FICHA</label><input name="ficha" placeholder="ex: 452"  type="number" required></div>
+            <div class="input-div"><label>Description 1</label><input name="description1" placeholder="ex: BIRCH YEL FAS 6/4 RGH KD 10FT" type="text" required></div>
+            <div class="input-div"><label>Description 2</label><input name="description2" placeholder="ex: Medex FSCMC 120" type="text"></div>
+            <div class="input-div"><label>Quantity</label><input name="quantity" placeholder="100" type="number" required></div>
+            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" placeholder="ex: PC" type="text"></div>
+            <div class="input-div"><label>Footage Quantity</label><input name="footage_quantity" type="number" placeholder="ex: 1320.28" step="any"></div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
                 <button type="submit" class="form-save-btn">Add Order</button>
@@ -127,8 +127,8 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
         <?php elseif ($table === 'mpl'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="mpl">
-            <div class="input-div"><label>Order Number</label><input name="order_number" type="text" required></div>
-            <div class="input-div"><label>Truck Number</label><input name="truck_number" type="text" required></div>
+            <div class="input-div"><label>Order Number</label><input name="order_number" placeholder="ex: 12345" type="text" required></div>
+            <div class="input-div"><label>Truck Number</label><input name="truck_number" placeholder="ex: Truck123" type="text" required></div>
             <div class="input-div"><label>Expected Delivery</label><input name="expected_delivery" type="date" required></div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
