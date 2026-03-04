@@ -1,4 +1,5 @@
 <?php
+ini_set('display_errors', 1); error_reporting(E_ALL);
   session_start();
   require_once "db.php";
   require_once "lib/inventory.php";
@@ -13,10 +14,7 @@
   $inventory_array = fetch_inventory($conn);
   $mpl_array       = fetch_mpl($conn);
 
-  // -------------------------------------------------------
-  // Core HTTP helper — all API calls route through here
-  // -------------------------------------------------------
-  function api_request($url, $method, $data = null) {
+  function api_request($url, $method, $data = null): mixed {
     $api_key = "test";
 
     $options = [
@@ -38,17 +36,6 @@
 
     return $result;
   }
-
-  // -------------------------------------------------------
-  // Fetch all orders from the external API
-  // -------------------------------------------------------
-  // Groups flat rows by reference_numb into orders with
-  // nested items. Checks local DB for shipped status so
-  // it persists on page reload.
-  //
-  // Returns:
-  //   ['success' => true,  'data' => [...grouped orders...]]
-  //   ['success' => false, 'data' => []]
 
   function fetch_orders_from_api($conn) {
     $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
@@ -194,16 +181,19 @@
                       <th>ID</th>
                       <th>SKU</th>
                       <th>FICHA</th>
-                      <th>Quantity In Stock</th>
-                      <th>Description</th>
-                      <th>UOM</th>
-                      <th>Piece Count</th>
-                      <th>Length</th>
+                      <th>Quantity</th>
+                      <th>Quantity Unit</th>
+                      <th>Description1</th>
+                      <th>Description2</th>
+                      <!-- <th>UOM</th> -->
+                      <!-- <th>Piece Count</th> -->
+                      <!-- <th>Length</th>
                       <th>Width</th>
                       <th>Height</th>
-                      <th>Weight</th>
-                      <th>Assembly</th>
-                      <th>Price Rate</th>
+                      <th>Weight</th> -->
+                      <th>Footage Quantity</th>
+                      <!-- <th>Assembly</th> -->
+                      <!-- <th>Price Rate</th> -->
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -214,16 +204,12 @@
                           <td><?= htmlspecialchars($row['inventory_id'])  ?></td>
                           <td><?= htmlspecialchars($row['sku'])           ?></td>
                           <td><?= htmlspecialchars($row['ficha'])         ?></td>
-                          <td><?= htmlspecialchars($row['quant_instock']) ?></td>
-                          <td><?= htmlspecialchars($row['description'])   ?></td>
-                          <td><?= htmlspecialchars($row['uom_primary'])   ?></td>
-                          <td><?= htmlspecialchars($row['piece_count'])   ?></td>
-                          <td><?= htmlspecialchars($row['length_inches']) ?></td>
-                          <td><?= htmlspecialchars($row['width_inches'])  ?></td>
-                          <td><?= htmlspecialchars($row['height_inches']) ?></td>
-                          <td><?= htmlspecialchars($row['weight_lbs'])    ?></td>
-                          <td><?= htmlspecialchars($row['assembly'])      ?></td>
-                          <td><?= htmlspecialchars($row['rate'])          ?></td>
+                          <td><?= htmlspecialchars($row['quantity']) ?></td>
+                          <td><?= htmlspecialchars($row['quantity_unit'])   ?></td>
+                          <td><?= htmlspecialchars($row['description1'])   ?></td>
+                          <td><?= htmlspecialchars($row['description2'])   ?></td>
+                          <td><?= htmlspecialchars($row['footage_quantity']) ?></td>
+                          
                           <td>
                             <div class="actions-div">
                               <a href="edit-form.php?table=inventory&id=<?= htmlspecialchars($row['inventory_id']) ?>">Edit</a>
@@ -504,9 +490,7 @@
         }
       }
 
-      // -------------------------------------------------------
       // Receive an MPL — POST to local api/mpl.php
-      // -------------------------------------------------------
       async function receiveMpl(btn) {
         const mplId = btn.dataset.mplId;
         if (!confirm(`Receive MPL #${mplId}? This will add to inventory.`)) return;
@@ -538,9 +522,7 @@
         }
       }
 
-      // -------------------------------------------------------
       // Toast notification helper
-      // -------------------------------------------------------
       function showToast(message, type) {
         const toast         = document.getElementById('toast');
         toast.textContent   = message;
@@ -549,9 +531,7 @@
         setTimeout(() => toast.style.display = 'none', 4000);
       }
 
-      // -------------------------------------------------------
       // Toggle expandable sub-tables
-      // -------------------------------------------------------
       function toggleOrderItems(orderId) {
         const row = document.getElementById(`order-items-${orderId}`);
         if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';

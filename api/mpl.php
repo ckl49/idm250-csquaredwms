@@ -69,7 +69,7 @@
                 ];
 
                 $context  = stream_context_create($options);
-                $response = file_get_contents('https://theirsite.com/api/mpl.php', false, $context);
+                $response = file_get_contents('https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php', false, $context);
             }
 
             http_response_code($result['success'] ? 200 : 422);

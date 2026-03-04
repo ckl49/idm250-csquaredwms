@@ -54,23 +54,18 @@
             exit;
 
         } else {
-        $id             = $data['id'];
-        $quant_instock = $data['quant_instock'];
+        $id             = $data['inventory_id'];
+        $quantity = $data['quantity'];
         $ficha          = $data['ficha'];
         $sku            = $data['sku'];
-        $description    = $data['description']; 
-        $uom_primary    = $data['uom_primary']; 
-        $piece_count    = $data['piece_count']; 
-        $length_inches  = $data['length_inches']; 
-        $width_inches   = $data['width_inches']; 
-        $height_inches  = $data['height_inches']; 
-        $weight_lbs     = $data['weight_lbs']; 
-        $assembly       = $data['assembly']; 
-        $rate           = $data['rate'];
+        $description1    = $data['description1']; 
+        $description2    = $data['description2']; 
+        $quantity_unit = $data['quantity_unit'];
+        $footage_quantity = $data['footage_quantity'];
 
-            $sql = "INSERT INTO inventory (id, quant_instock, ficha, sku, description, uom_primary, piece_count, length_inches, width_inches, height_inches, weight_lbs, assembly, rate, time_stamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO inventory (id, quantity, ficha, sku, description1, description2, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("iiisssiddddsd", $id, $quant_instock, $ficha, $sku, $description, $uom_primary, $piece_count, $length_inches, $width_inches, $height_inches, $weight_lbs, $assembly, $rate);
+            $stmt->bind_param("iiisssii", $id, $quantity, $ficha, $sku, $description1, $description2, $quantity_unit, $footage_quantity);
 
             if ($stmt->execute()) {
                 http_response_code(201);

@@ -82,37 +82,12 @@
                 exit;
             }
 
-            // -------------------------------------------------------
-            // TEMPORARY — local inventory deduction and status tracking
-            // until the other team merges their API fix.
-            //
-            // Once merged, DELETE the foreach loop and INSERT block below,
-            // then UNCOMMENT the call_external_api block beneath them.
-            // -------------------------------------------------------
-
-            // DELETE this foreach loop after merge:
-            $errors = [];
-            foreach ($item_ids as $id) {
-                $id   = intval($id);
-                $stmt = $conn->prepare("UPDATE inventory SET quant_instock = quant_instock - 1 WHERE id = ?");
-                $stmt->bind_param("i", $id);
-                if (!$stmt->execute()) {
-                    $errors[] = "Failed to update inventory for id {$id}";
-                }
-            }
-
-            // DELETE this INSERT block after merge:
-            $stmt = $conn->prepare("INSERT IGNORE INTO orders (reference_numb, status, ship_date, trailer_name) VALUES (?, 'shipped', ?, ?)");
-            $stmt->bind_param("sss", $reference, $ship_date, $trailer_name);
-            $stmt->execute();
-
-            // UNCOMMENT this block after merge:
-            // $external_result = call_external_api('POST', [
-            //     'reference'      => $reference,
-            //     'date'           => $ship_date,
-            //     'truck'          => $trailer_name,
-            //     'selected_items' => $item_ids
-            // ]);
+            $external_result = call_external_api('POST', [
+                 'reference'      => $reference,
+                 'date'           => $ship_date,
+                 'truck'          => $trailer_name,
+                 'selected_items' => $item_ids
+            ]);
 
             http_response_code(empty($errors) ? 200 : 422);
             echo json_encode(empty($errors)

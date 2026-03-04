@@ -2,25 +2,13 @@
    function fetch_mpl($conn) {
     $sql = "SELECT 
                 m.id AS mpl_id,
-                m.order_number,
-                m.truck_number,
-                m.expected_delivery,
-                m.status,
-                i.id AS item_id,
-                i.ficha,
-                i.sku,
-                i.quantity,
-                i.description,
-                i.uom_primary,
-                i.piece_count,
-                i.length_inches,
-                i.width_inches,
-                i.height_inches,
-                i.weight_lbs,
-                i.assembly,
-                i.rate
+                m.item_id,
+                m.reference_numb,
+                m.ship_date,
+                m.trailer_name,
+                i.status,
             FROM mpl m
-            LEFT JOIN mpl_items i ON m.id = i.mpl_id
+            LEFT JOIN inventory_item_info i ON m.id = i.mpl_id
             ORDER BY m.id";
     
         $result = $conn->query($sql);
@@ -34,9 +22,9 @@
                 if (!isset($mpl_array[$mpl_id])) {
                     $mpl_array[$mpl_id] = [
                         'mpl_id'            => $mpl_id,
-                        'order_number'      => $row['order_number'],
-                        'truck_number'      => $row['truck_number'],
-                        'expected_delivery' => $row['expected_delivery'],
+                        'reference_numb'    => $row['reference_numb'],
+                        'trailer_name'      => $row['trailer_name'],
+                        'ship_date'         => $row['ship_date'],
                         'status'            => $row['status'],
                         'items'             => []
                     ];
@@ -44,23 +32,17 @@
     
                 // Add item if it exists
                 if ($row['item_id']) {
-                    $mpl_array[$mpl_id]['items'][] = 
-                        $mpl_array[$mpl_id]['items'][] = [
-                            'item_id'       => $row['item_id'],
-                            'ficha'         => $row['ficha'],
-                            'quantity'      => $row['quantity'],
-                            'description'   => $row['description'],
-                            'sku'           => $row['sku'],
-                            'uom_primary'   => $row['uom_primary'],
-                            'piece_count'   => $row['piece_count'],
-                            'length_inches' => $row['length_inches'],
-                            'width_inches'  => $row['width_inches'],
-                            'height_inches' => $row['height_inches'],
-                            'weight_lbs'    => $row['weight_lbs'],
-                            'assembly'      => $row['assembly'],
-                            'rate'          => $row['rate']
-                        ];
-
+                    $mpl_array[$mpl_id]['items'][] = [
+                        'item_id'       => $row['inventory_id'],
+                        'sku'           => $row['sku'],
+                        'unit_numb'     => $row['unit_numb'],
+                        'ficha'         => $row['ficha'],
+                        'description1'   => $row['description1'],
+                        'description2'   => $row['description2'],
+                        'quantity'      => $row['quantity'],
+                        'quantity_unit' => $row['quantity_unit'],
+                        'footage_quantity'  => $row['footage_quantity'],
+                    ];
                 }
             }
     
