@@ -117,14 +117,37 @@ $label = $table_labels[$table] ?? ucfirst($table);
         <?php if ($table === 'inventory'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="inventory">
-            <input type="hidden" name="id" value="<?= $row['id'] ?>">
-            <div class="input-div"><label>FICHA</label><input name="ficha" type="text" placeholder="452" value="<?= $row['ficha'] ?? '' ?>" required></div>
-            <div class="input-div"><label>SKU</label><input name="sku" type="text" placeholder="1720823-0567" value="<?= $row['sku'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Quantity</label><input name="quantity" type="number" placeholder="100" value="<?= $row['quantity'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Description 1</label><input name="description1" placeholder="BIRCH YEL FAS 6/4 RGH KD 10FT" type="text" value="<?= $row['description1'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Description 2</label><input name="description2" placeholder="Medex FSCMC 120" type="text" value="<?= $row['description2'] ?? '' ?>"></div>
-            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" type="text" placeholder="PC" value="<?= $row['quantity_unit'] ?? '' ?>"></div>
-            <div class="input-div"><label>Footage Quantity</label><input name="footage_quantity" type="number" step="any" placeholder="1320.28" value="<?= $row['footage_quantity'] ?? '' ?>"></div>
+            <input type="hidden" name="id"    value="<?= $row['id'] ?>">
+            <div class="modal-grid">
+                <div class="input-div">
+                    <label>FICHA</label>
+                    <input name="ficha" type="text" placeholder="452" value="<?= htmlspecialchars($row['ficha'] ?? '') ?>" required>
+                </div>
+                <div class="input-div">
+                    <label>SKU</label>
+                    <input name="sku" type="text" placeholder="1720823-0567" value="<?= htmlspecialchars($row['sku'] ?? '') ?>" required>
+                </div>
+                <div class="input-div full-width">
+                    <label>Description 1</label>
+                    <input name="description1" type="text" placeholder="BIRCH YEL FAS 6/4 RGH KD 10FT" value="<?= htmlspecialchars($row['description1'] ?? '') ?>" required>
+                </div>
+                <div class="input-div full-width">
+                    <label>Description 2</label>
+                    <input name="description2" type="text" placeholder="Medex FSCMC 120" value="<?= htmlspecialchars($row['description2'] ?? '') ?>">
+                </div>
+                <div class="input-div">
+                    <label>Quantity</label>
+                    <input name="quantity" type="number" placeholder="100" value="<?= htmlspecialchars($row['quantity'] ?? '') ?>" required>
+                </div>
+                <div class="input-div">
+                    <label>Quantity Unit</label>
+                    <input name="quantity_unit" type="text" placeholder="PC" value="<?= htmlspecialchars($row['quantity_unit'] ?? '') ?>">
+                </div>
+                <div class="input-div full-width">
+                    <label>Footage Quantity</label>
+                    <input name="footage_quantity" type="number" step="any" placeholder="1320.28" value="<?= htmlspecialchars($row['footage_quantity'] ?? '') ?>">
+                </div>
+            </div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
                 <button type="submit" class="form-save-btn">Save Changes</button>
@@ -134,19 +157,39 @@ $label = $table_labels[$table] ?? ucfirst($table);
         <?php elseif ($table === 'orders'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="orders">
-            <div class="input-div"><label>FICHA</label><input name="ficha" type="number" value="<?= $row['ficha'] ?? '' ?>" required></div>
-            <div class="input-div">
-                <label>Status</label>
-                <select name="status" class="form-select">
-                    <option value="pending"   <?= ($row['status'] ?? '') === 'pending'   ? 'selected' : '' ?>>Pending</option>
-                    <option value="confirmed" <?= ($row['status'] ?? '') === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
-                </select>
+            <div class="modal-grid">
+                <div class="input-div">
+                    <label>FICHA</label>
+                    <input name="ficha" type="number" value="<?= htmlspecialchars($row['ficha'] ?? '') ?>" required>
+                </div>
+                <div class="input-div">
+                    <label>Status</label>
+                    <select name="status" class="form-select">
+                        <option value="pending"   <?= ($row['status'] ?? '') === 'pending'   ? 'selected' : '' ?>>Pending</option>
+                        <option value="confirmed" <?= ($row['status'] ?? '') === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
+                    </select>
+                </div>
+                <div class="input-div full-width">
+                    <label>Description 1</label>
+                    <input name="description1" type="text" value="<?= htmlspecialchars($row['description1'] ?? '') ?>" required>
+                </div>
+                <div class="input-div full-width">
+                    <label>Description 2</label>
+                    <input name="description2" type="text" value="<?= htmlspecialchars($row['description2'] ?? '') ?>">
+                </div>
+                <div class="input-div">
+                    <label>Quantity</label>
+                    <input name="quantity" type="number" value="<?= htmlspecialchars($row['quantity'] ?? '') ?>" required>
+                </div>
+                <div class="input-div">
+                    <label>Quantity Unit</label>
+                    <input name="quantity_unit" type="text" value="<?= htmlspecialchars($row['quantity_unit'] ?? '') ?>">
+                </div>
+                <div class="input-div full-width">
+                    <label>Footage Quantity</label>
+                    <input name="footage_quantity" type="number" value="<?= htmlspecialchars($row['footage_quantity'] ?? '') ?>">
+                </div>
             </div>
-            <div class="input-div"><label>Description 1</label><input name="description1" type="text" value="<?= $row['description1'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Description 2</label><input name="description2" type="text" value="<?= $row['description2'] ?? '' ?>"></div>
-            <div class="input-div"><label>Quantity</label><input name="quantity" type="number" value="<?= $row['quantity'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Quantity Unit</label><input name="quantity_unit" type="text" value="<?= $row['quantity_unit'] ?? '' ?>"></div>
-            <div class="input-div"><label>Footage Quantity</label><input name="footage_quantity" type="number" value="<?= $row['footage_quantity'] ?? '' ?>"></div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
                 <button type="submit" class="form-save-btn">Save Changes</button>
@@ -156,9 +199,20 @@ $label = $table_labels[$table] ?? ucfirst($table);
         <?php elseif ($table === 'mpl'): ?>
         <form method="post" class="edit-form">
             <input type="hidden" name="table" value="mpl">
-            <div class="input-div"><label>Order Number</label><input name="order_number" type="text" value="<?= $row['order_number'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Truck Number</label><input name="truck_number" type="text" value="<?= $row['truck_number'] ?? '' ?>" required></div>
-            <div class="input-div"><label>Expected Delivery</label><input name="expected_delivery" type="date" value="<?= $row['expected_delivery'] ?? '' ?>" required></div>
+            <div class="modal-grid">
+                <div class="input-div">
+                    <label>Order Number</label>
+                    <input name="order_number" type="text" value="<?= htmlspecialchars($row['order_number'] ?? '') ?>" required>
+                </div>
+                <div class="input-div">
+                    <label>Truck Number</label>
+                    <input name="truck_number" type="text" value="<?= htmlspecialchars($row['truck_number'] ?? '') ?>" required>
+                </div>
+                <div class="input-div full-width">
+                    <label>Expected Delivery</label>
+                    <input name="expected_delivery" type="date" value="<?= htmlspecialchars($row['expected_delivery'] ?? '') ?>" required>
+                </div>
+            </div>
             <div class="form-actions">
                 <a href="dashboard.php" class="form-cancel-btn">Cancel</a>
                 <button type="submit" class="form-save-btn">Save Changes</button>

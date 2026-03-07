@@ -11,7 +11,6 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
   if (isset($_GET['logout']))  logout();
   if (isset($_POST['logout'])) logout();
 
-  // Handle Add SKU form submission
   $sku_form_error   = null;
   $sku_form_success = null;
 
@@ -60,23 +59,19 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
     }
   }
 
-  // -------------------------------------------------------
-  // Handle DELETE SKU
-  // -------------------------------------------------------
+  // DELETE SKU
   if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_sku') {
     $product_id = intval($_POST['product_id'] ?? 0);
 
     if ($product_id) {
       $conn->begin_transaction();
       try {
-        // Get ficha first so we can delete from products_types
         $stmt = $conn->prepare("SELECT ficha FROM ashley.products WHERE id=?");
         $stmt->bind_param("i", $product_id);
         $stmt->execute();
         $row   = $stmt->get_result()->fetch_assoc();
         $ficha = $row['ficha'] ?? null;
 
-        // Delete from all three tables
         $stmt = $conn->prepare("DELETE FROM ashley.products WHERE id=?");
         $stmt->bind_param("i", $product_id);
         if (!$stmt->execute()) throw new Exception("Failed to delete product");
@@ -144,6 +139,88 @@ exit;
     }
   }
 
+  // INVENTORY MODAL
+  $inv_form_error = null;
+
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_inventory') {
+    $ficha            = trim($_POST['ficha']               ?? '');
+    $sku_i            = trim($_POST['sku']                 ?? '');
+    $quantity         = intval($_POST['quantity']          ?? 0);
+    $description1     = trim($_POST['description1']        ?? '');
+    $description2     = trim($_POST['description2']        ?? '');
+    $quantity_unit    = trim($_POST['quantity_unit']        ?? '');
+    $footage_quantity = floatval($_POST['footage_quantity'] ?? 0);
+
+    if (!$ficha || !$sku_i || !$description1) {
+      $inv_form_error = 'Ficha, SKU, and Description 1 are required.';
+    } else {
+      $stmt = $conn->prepare("INSERT INTO inventory (ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)");
+      $stmt->bind_param("ssisssd", $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity);
+      if ($stmt->execute()) {
+        header("Location: dashboard.php?section=inventory&item_added=1"); exit;
+      } else {
+        $inv_form_error = 'Database error: ' . $stmt->error;
+      }
+    }
+  }
+
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_inventory') {
+    $inv_id           = intval($_POST['inventory_id']       ?? 0);
+    $ficha            = trim($_POST['ficha']                ?? '');
+    $sku_i            = trim($_POST['sku']                  ?? '');
+    $quantity         = intval($_POST['quantity']           ?? 0);
+    $description1     = trim($_POST['description1']         ?? '');
+    $description2     = trim($_POST['description2']         ?? '');
+    $quantity_unit    = trim($_POST['quantity_unit']         ?? '');
+    $footage_quantity = floatval($_POST['footage_quantity']  ?? 0);
+
+    if (!$inv_id || !$ficha || !$sku_i || !$description1) {
+      $inv_form_error = 'All required fields must be filled.';
+    } else {
+      $stmt = $conn->prepare("UPDATE inventory SET ficha=?, sku=?, quantity=?, description1=?, description2=?, quantity_unit=?, footage_quantity=? WHERE id=?");
+      $stmt->bind_param("ssisssdi", $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity, $inv_id);
+      if ($stmt->execute()) {
+        header("Location: dashboard.php?section=inventory&item_updated=1"); exit;
+      } else {
+        $inv_form_error = 'Database error: ' . $stmt->error;
+      }
+    }
+  }
+
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_inventory') {
+    $inv_id = intval($_POST['inventory_id'] ?? 0);
+    if ($inv_id) {
+      $stmt = $conn->prepare("DELETE FROM inventory WHERE id=?");
+      $stmt->bind_param("i", $inv_id);
+      if ($stmt->execute()) {
+        header("Location: dashboard.php?section=inventory&item_deleted=1"); exit;
+      } else {
+        $inv_form_error = 'Delete failed: ' . $stmt->error;
+      }
+    }
+  }
+
+  // MPL MODAL
+  $mpl_form_error = null;
+
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_mpl') {
+    $order_number      = trim($_POST['order_number']      ?? '');
+    $truck_number      = trim($_POST['truck_number']      ?? '');
+    $expected_delivery = trim($_POST['expected_delivery'] ?? '');
+
+    if (!$order_number || !$truck_number || !$expected_delivery) {
+      $mpl_form_error = 'All fields are required.';
+    } else {
+      $stmt = $conn->prepare("INSERT INTO mpl (order_number, truck_number, expected_delivery) VALUES (?, ?, ?)");
+      $stmt->bind_param("sss", $order_number, $truck_number, $expected_delivery);
+      if ($stmt->execute()) {
+        header("Location: dashboard.php?section=mpl&mpl_added=1"); exit;
+      } else {
+        $mpl_form_error = 'Database error: ' . $stmt->error;
+      }
+    }
+  }
+
   $inventory_array = fetch_inventory($conn);
   $mpl_array       = fetch_mpl($conn);
 
@@ -202,7 +279,7 @@ exit;
     return $result;
   }
 
-  // Fetch all orders from the external API
+  // Fetch all orders from the ashley/ray API
   function fetch_orders_from_api($conn) {
     $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
     $result = api_request($url, 'GET');
@@ -275,9 +352,7 @@ exit;
     return ['success' => true, 'data' => array_values($grouped)];
   }
 
-  // -------------------------------------------------------
-  // Update an existing order on the external API (PUT)
-  // -------------------------------------------------------
+  // UPDATE external api
   function update_order_on_api($data) {
     $url = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
 
@@ -339,7 +414,7 @@ exit;
 
             <!--  INVENTORY  -->
             <section id="inventorySection" style="display:none;">
-              <a id="addButton" href="create-form.php?table=inventory" class="nav-button">Add Product</a>
+              <button class="nav-button" onclick="openModal('addInventoryModal')">+ Add Product</button>
               <div id="inventoryTable" class="table-container">
                 <table class="data-table">
                   <thead>
@@ -369,8 +444,17 @@ exit;
                           <td><?= htmlspecialchars($row['footage_quantity']) ?></td>
                           <td>
                             <div class="actions-div">
-                              <a href="edit-form.php?table=inventory&id=<?= htmlspecialchars($row['inventory_id']) ?>">Edit</a>
-                              <a href="delete-form.php?table=inventory&id=<?= htmlspecialchars($row['inventory_id']) ?>" onclick="return confirm('Are you sure you want to delete this record?')">Delete</a>
+                              <button class="sku-btn-edit" onclick="openEditInventory(
+                                <?= intval($row['inventory_id']) ?>,
+                                '<?= addslashes($row['ficha']) ?>',
+                                '<?= addslashes($row['sku']) ?>',
+                                <?= intval($row['quantity']) ?>,
+                                '<?= addslashes($row['description1']) ?>',
+                                '<?= addslashes($row['description2']) ?>',
+                                '<?= addslashes($row['quantity_unit']) ?>',
+                                <?= floatval($row['footage_quantity']) ?>
+                              )">Edit</button>
+                              <button class="sku-btn-delete" onclick="deleteInventory(<?= intval($row['inventory_id']) ?>, '<?= addslashes($row['sku']) ?>')">Delete</button>
                             </div>
                           </td>
                         </tr>
@@ -385,7 +469,7 @@ exit;
 
             <!--  ORDERS  -->
             <section id="ordersSection" style="display:none;">
-              <a id="addButton" href="create-form.php?table=orders" class="nav-button">Add Order</a>
+              <!-- [REMOVED] Add Order button — orders come from external API -->
               <div id="ordersTable" class="table-container">
                 <table class="data-table">
                   <thead>
@@ -471,6 +555,7 @@ exit;
 
              <!--  MPL  -->
              <section id="mplSection" style="display:none;">
+              <button class="nav-button" onclick="openModal('addMplModal')">+ Add MPL</button>
               <div id="mplTable" class="table-container">
                 <table class="data-table">
                   <thead>
@@ -647,7 +732,148 @@ exit;
       </div>
     </div>
 
-    <!-- ===================== ADD SKU MODAL ===================== -->
+    <!-- ===================== ADD INVENTORY MODAL ===================== -->
+    <div class="modal-overlay" id="addInventoryModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span class="modal-title">Add Inventory Item</span>
+          <button class="modal-close" onclick="closeModal('addInventoryModal')">✕</button>
+        </div>
+        <?php if ($inv_form_error && $_POST['action'] === 'add_inventory'): ?>
+          <div class="form-msg error"><?= htmlspecialchars($inv_form_error) ?></div>
+        <?php endif; ?>
+        <form method="POST" action="dashboard.php" class="edit-form">
+          <input type="hidden" name="action" value="add_inventory">
+          <div class="modal-grid">
+            <div class="input-div">
+              <label>FICHA *</label>
+              <input type="text" name="ficha" placeholder="e.g. 452" required>
+            </div>
+            <div class="input-div">
+              <label>SKU *</label>
+              <input type="text" name="sku" placeholder="e.g. 1720823-0567" required>
+            </div>
+            <div class="input-div full-width">
+              <label>Description 1 *</label>
+              <input type="text" name="description1" placeholder="e.g. BIRCH YEL FAS 6/4 RGH KD 10FT" required>
+            </div>
+            <div class="input-div full-width">
+              <label>Description 2</label>
+              <input type="text" name="description2" placeholder="e.g. Medex FSCMC 120">
+            </div>
+            <div class="input-div">
+              <label>Quantity</label>
+              <input type="number" name="quantity" placeholder="e.g. 100">
+            </div>
+            <div class="input-div">
+              <label>Quantity Unit</label>
+              <input type="text" name="quantity_unit" placeholder="e.g. PC">
+            </div>
+            <div class="input-div full-width">
+              <label>Footage Quantity</label>
+              <input type="number" name="footage_quantity" step="any" placeholder="e.g. 1320.28">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="form-cancel-btn" onclick="closeModal('addInventoryModal')">Cancel</button>
+            <button type="submit" class="form-save-btn">Add Item</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===================== EDIT INVENTORY MODAL ===================== -->
+    <div class="modal-overlay" id="editInventoryModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span class="modal-title">Edit Inventory Item</span>
+          <button class="modal-close" onclick="closeModal('editInventoryModal')">✕</button>
+        </div>
+        <?php if ($inv_form_error && $_POST['action'] === 'edit_inventory'): ?>
+          <div class="form-msg error"><?= htmlspecialchars($inv_form_error) ?></div>
+        <?php endif; ?>
+        <form method="POST" action="dashboard.php" class="edit-form">
+          <input type="hidden" name="action"       value="edit_inventory">
+          <input type="hidden" name="inventory_id" id="edit_inv_id">
+          <div class="modal-grid">
+            <div class="input-div">
+              <label>FICHA *</label>
+              <input type="text" name="ficha" id="edit_inv_ficha" required>
+            </div>
+            <div class="input-div">
+              <label>SKU *</label>
+              <input type="text" name="sku" id="edit_inv_sku" required>
+            </div>
+            <div class="input-div full-width">
+              <label>Description 1 *</label>
+              <input type="text" name="description1" id="edit_inv_desc1" required>
+            </div>
+            <div class="input-div full-width">
+              <label>Description 2</label>
+              <input type="text" name="description2" id="edit_inv_desc2">
+            </div>
+            <div class="input-div">
+              <label>Quantity</label>
+              <input type="number" name="quantity" id="edit_inv_quantity">
+            </div>
+            <div class="input-div">
+              <label>Quantity Unit</label>
+              <input type="text" name="quantity_unit" id="edit_inv_unit">
+            </div>
+            <div class="input-div full-width">
+              <label>Footage Quantity</label>
+              <input type="number" name="footage_quantity" id="edit_inv_footage" step="any">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="form-cancel-btn" onclick="closeModal('editInventoryModal')">Cancel</button>
+            <button type="submit" class="form-save-btn">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Inventory hidden form -->
+    <form method="POST" action="dashboard.php" id="deleteInventoryForm" style="display:none;">
+      <input type="hidden" name="action"       value="delete_inventory">
+      <input type="hidden" name="inventory_id" id="delete_inv_id">
+    </form>
+
+    <!-- ===================== ADD MPL MODAL ===================== -->
+    <div class="modal-overlay" id="addMplModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span class="modal-title">Add MPL</span>
+          <button class="modal-close" onclick="closeModal('addMplModal')">✕</button>
+        </div>
+        <?php if ($mpl_form_error && $_POST['action'] === 'add_mpl'): ?>
+          <div class="form-msg error"><?= htmlspecialchars($mpl_form_error) ?></div>
+        <?php endif; ?>
+        <form method="POST" action="dashboard.php" class="edit-form">
+          <input type="hidden" name="action" value="add_mpl">
+          <div class="modal-grid">
+            <div class="input-div">
+              <label>Order Number *</label>
+              <input type="text" name="order_number" placeholder="e.g. 12345" required>
+            </div>
+            <div class="input-div">
+              <label>Truck Number *</label>
+              <input type="text" name="truck_number" placeholder="e.g. Truck123" required>
+            </div>
+            <div class="input-div full-width">
+              <label>Expected Delivery *</label>
+              <input type="date" name="expected_delivery" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="form-cancel-btn" onclick="closeModal('addMplModal')">Cancel</button>
+            <button type="submit" class="form-save-btn">Add MPL</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!--  ADD SKU MODAL  -->
     <div class="modal-overlay" id="addSkuModal">
       <div class="modal-card">
         <div class="modal-header">
@@ -805,9 +1031,7 @@ exit;
 
     <script src="script.js"></script>
     <script>
-      // -------------------------------------------------------
-      // SKU search / filter
-      // -------------------------------------------------------
+      // SKU search
       function filterSkus() {
         const query = document.getElementById('skuSearch').value.toLowerCase().trim();
         const cards = document.querySelectorAll('.sku-card');
@@ -837,9 +1061,11 @@ exit;
         }
       }
 
-      // -------------------------------------------------------
       // Modal helpers
-      // -------------------------------------------------------
+      function openModal(id) {
+        document.getElementById(id).classList.add('open');
+      }
+
       function closeModal(id) {
         document.getElementById(id).classList.remove('open');
       }
@@ -851,9 +1077,7 @@ exit;
         });
       });
 
-      // -------------------------------------------------------
       // Edit SKU — pre-fill modal fields
-      // -------------------------------------------------------
       function openEditSku(id, sku, ficha, description, rate, uom, pieceCount, assembly, length, width, height, weight) {
         document.getElementById('edit_product_id').value   = id;
         document.getElementById('edit_sku').value          = sku;
@@ -871,18 +1095,33 @@ exit;
         document.getElementById('editSkuModal').classList.add('open');
       }
 
-      // -------------------------------------------------------
-      // Delete SKU — confirm then submit hidden form
-      // -------------------------------------------------------
+      // Delete SKU 
       function deleteSku(id, sku) {
         if (!confirm(`Delete SKU "${sku}"? This cannot be undone.`)) return;
         document.getElementById('delete_product_id').value = id;
         document.getElementById('deleteSkuForm').submit();
       }
 
-      // -------------------------------------------------------
-      // Re-open correct modal after form submission
-      // -------------------------------------------------------
+      // EDIT MODAL (inventory)
+      function openEditInventory(id, ficha, sku, quantity, desc1, desc2, unit, footage) {
+        document.getElementById('edit_inv_id').value       = id;
+        document.getElementById('edit_inv_ficha').value    = ficha;
+        document.getElementById('edit_inv_sku').value      = sku;
+        document.getElementById('edit_inv_quantity').value = quantity;
+        document.getElementById('edit_inv_desc1').value    = desc1;
+        document.getElementById('edit_inv_desc2').value    = desc2;
+        document.getElementById('edit_inv_unit').value     = unit;
+        document.getElementById('edit_inv_footage').value  = footage;
+        openModal('editInventoryModal');
+      }
+
+      // DELETE MODAL (inventory)
+      function deleteInventory(id, sku) {
+        if (!confirm(`Delete inventory item "${sku}"? This cannot be undone.`)) return;
+        document.getElementById('delete_inv_id').value = id;
+        document.getElementById('deleteInventoryForm').submit();
+      }
+
       <?php if (isset($_GET['section']) && $_GET['section'] === 'skus'): ?>
         document.addEventListener('DOMContentLoaded', () => {
           <?php if (isset($_GET['sku_added'])): ?>
@@ -901,7 +1140,25 @@ exit;
         document.addEventListener('DOMContentLoaded', () => {
           document.getElementById('addSkuModal').classList.add('open');
         });
-<?php endif; ?>
+      <?php endif; ?>
+
+      // TOAST TRIGGER feedback for inventory/mpl actions
+      <?php if (isset($_GET['section']) && $_GET['section'] === 'inventory'): ?>
+        document.addEventListener('DOMContentLoaded', () => {
+          <?php if (isset($_GET['item_added'])):   ?> showToast('Inventory item added.',   'success'); <?php endif; ?>
+          <?php if (isset($_GET['item_updated'])): ?> showToast('Inventory item updated.', 'success'); <?php endif; ?>
+          <?php if (isset($_GET['item_deleted'])): ?> showToast('Inventory item deleted.', 'success'); <?php endif; ?>
+          <?php if ($inv_form_error): ?> openModal('<?= $_POST['action'] === 'edit_inventory' ? 'editInventoryModal' : 'addInventoryModal' ?>'); <?php endif; ?>
+        });
+      <?php endif; ?>
+
+      <?php if (isset($_GET['section']) && $_GET['section'] === 'mpl'): ?>
+        document.addEventListener('DOMContentLoaded', () => {
+          <?php if (isset($_GET['mpl_added'])): ?> showToast('MPL added.', 'success'); <?php endif; ?>
+          <?php if ($mpl_form_error): ?> openModal('addMplModal'); <?php endif; ?>
+        });
+      <?php endif; ?>
+
       // Ship an order
       async function shipOrder(btn) {
         const orderId   = btn.dataset.orderId;
