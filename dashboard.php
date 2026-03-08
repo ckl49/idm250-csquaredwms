@@ -36,17 +36,17 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
     if ($product_id && $sku_val && $description) {
       $conn->begin_transaction();
       try {
-        // Update products
+        // Update ashley.products
         $stmt = $conn->prepare("UPDATE ashley.products SET ficha=?, sku=?, description=?, rate=? WHERE id=?");
         $stmt->bind_param("issdi", $ficha, $sku_val, $description, $rate, $product_id);
         if (!$stmt->execute()) throw new Exception("Failed to update product: " . $stmt->error);
 
-        // Update products_dimensions
+        // Update ashley.products_dimensions
         $stmt = $conn->prepare("UPDATE ashley.products_dimensions SET length_inches=?, width_inches=?, height_inches=?, weight_lbs=? WHERE id=?");
         $stmt->bind_param("ddddi", $length, $width, $height, $weight, $product_id);
         if (!$stmt->execute()) throw new Exception("Failed to update dimensions: " . $stmt->error);
 
-        // Update products_types (matched by ficha)
+        // Update ashley.products_types (matched by ficha)
         $stmt = $conn->prepare("UPDATE ashley.products_types SET uom_primary=?, piece_count=?, assembly=? WHERE ficha=?");
         $stmt->bind_param("sisi", $uom, $piece_count, $assembly, $ficha);
         if (!$stmt->execute()) throw new Exception("Failed to update type: " . $stmt->error);
@@ -1203,7 +1203,6 @@ exit;
                     if (line.trim()) setTimeout(() => showToast(line, 'error'), i * 2000);
                 });
               }
-            }
         } catch (err) {
             btn.disabled    = false;
             btn.textContent = 'Ship';
