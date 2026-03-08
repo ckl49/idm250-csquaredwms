@@ -30,11 +30,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // ── GET: fetch live from external API ────────────────────────────────────────
 if ($method === 'GET') {
-    $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php";
+    $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api-mpl.php";
     $opts   = ['http' => ['method' => 'GET', 'header' => "x-api-key: test\r\n", 'ignore_errors' => true]];
     $result = json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
 
-    if (!empty($result['data'])) {
+    if (!empty($result) && is_array($result)) {
         echo json_encode(['success' => true, 'data' => $result['data']]);
     } else {
         echo json_encode(['success' => false, 'error' => 'No MPL records found']);
@@ -54,24 +54,31 @@ if ($method === 'GET') {
             exit;
         }
 
+        error_log("Calling receive_mpl with mpl_id: " . $mpl_id);
+        $result = receive_mpl($conn, $mpl_id);
+        error_log("receive_mpl result: " . json_encode($result));
+
         $result = receive_mpl($conn, $mpl_id);
 
         // Notify external API only if receive succeeded
         if ($result['success']) {
             $api_key = $env['X_API_KEY'] ?? 'test';
-
+        
             $options = [
                 'http' => [
-                    'method'        => 'POST',
+                    'method'        => 'POST',  
                     'header'        => "Content-Type: application/json\r\n" .
                                        "x-api-key: $api_key\r\n",
-                    'content'       => json_encode(['mpl_id' => $mpl_id, 'status' => 'received']),
+                    'content'       => json_encode([
+                        'id'     => $mpl_id,
+                        'status' => 'accepted'  // their API accepts 'pending' or 'accepted'
+                    ]),
                     'ignore_errors' => true
                 ]
             ];
-
+        
             file_get_contents(
-                'https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/mpl-shipping.php',
+                'https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api-mpl.php',
                 false,
                 stream_context_create($options)
             );
