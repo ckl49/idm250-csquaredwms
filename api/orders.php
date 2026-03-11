@@ -127,6 +127,14 @@
             echo json_encode($result);
         }
 
+           call_external_api('PUT', $external_api_url, $external_api_key, [
+            'id'             => $order_id,
+            'reference_numb' => $reference,
+            'ship_date'      => $ship_date,
+            'trailer_name'   => $trailer_name,
+            'status'         => 'shipped'
+        ]);
+
     // -------------------------------------------------------
     // PUT — forward update to external API
     // -------------------------------------------------------
