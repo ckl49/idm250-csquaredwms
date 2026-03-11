@@ -90,12 +90,12 @@
             }
 
             $stmt = $conn->prepare(
-            "INSERT INTO orders (reference_numb, status)
-             VALUES (?, 'shipped')
-             ON DUPLICATE KEY UPDATE status = 'shipped'"
-        );
-        $stmt->bind_param("s", $reference);
-        $stmt->execute();
+                "INSERT INTO orders (reference_numb, status)
+                 VALUES (?, 'shipped')
+                 ON DUPLICATE KEY UPDATE status = 'shipped'"
+            );
+            $stmt->bind_param("s", $reference);
+            $stmt->execute();
 
             // 2. Only notify external API if local succeeded
             $external_result = call_external_api('POST', $external_api_url, $external_api_key, [

@@ -425,6 +425,7 @@ exit;
                   <thead>
                     <tr>
                       <th>ID</th>
+                      <th>Order ID</th>
                       <th>SKU</th>
                       <th>FICHA</th>
                       <th>Quantity</th>
@@ -440,6 +441,7 @@ exit;
                       <?php foreach ($inventory_array['data'] as $row): ?>
                         <tr>
                           <td><?= htmlspecialchars($row['inventory_id'])     ?></td>
+                          <td><?= htmlspecialchars($row['order_id'])          ?></td>
                           <td><?= htmlspecialchars($row['sku'])              ?></td>
                           <td><?= htmlspecialchars($row['ficha'])            ?></td>
                           <td><?= htmlspecialchars($row['quantity'])         ?></td>
@@ -451,6 +453,7 @@ exit;
                             <div class="actions-div">
                               <button class="sku-btn-edit" onclick="openEditInventory(
                                 <?= intval($row['inventory_id']) ?>,
+                                <?= intval($row['order_id']) ?>,
                                 '<?= addslashes($row['ficha']) ?>',
                                 '<?= addslashes($row['sku']) ?>',
                                 <?= intval($row['quantity']) ?>,
@@ -490,13 +493,13 @@ exit;
                   <tbody>
                     <?php if ($orders_array['success']): ?>
                       <?php foreach ($orders_array['data'] as $row):
-    $order_id      = $row['orders_id'];
-    $status        = $row['status'];
-    $confirmed = ($status === 'shipped' || $status === 'accepted');
-$disabled  = $confirmed ? 'disabled' : '';
-$label     = $confirmed ? ucfirst($status) : 'Ship';
-    $item_ids_json = htmlspecialchars(json_encode($row['item_ids']), ENT_QUOTES);
-?>
+                            $order_id      = $row['orders_id'];
+                            $status        = $row['status'];
+                            $confirmed = ($status === 'shipped' || $status === 'accepted');
+                            $disabled  = $confirmed ? 'disabled' : '';
+                            $label     = $confirmed ? ucfirst($status) : 'Ship';
+                            $item_ids_json = htmlspecialchars(json_encode($row['item_ids']), ENT_QUOTES);
+                        ?>
                         <tr class="order-header-row" onclick="toggleOrderItems(<?= $order_id ?>)">
                           <td><?= htmlspecialchars($order_id)              ?></td>
                           <td><?= htmlspecialchars($row['reference_numb']) ?></td>

@@ -1,6 +1,6 @@
 <?php
 function fetch_inventory($conn) {
-    $sql = "SELECT id AS inventory_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity FROM inventory";
+    $sql = "SELECT id AS inventory_id, order_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity FROM inventory";
     $result = $conn->query($sql);
 
     if ($result && $result->num_rows > 0) {

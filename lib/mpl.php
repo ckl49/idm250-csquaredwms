@@ -87,6 +87,7 @@ function receive_mpl($conn, $mpl_id) {
 
     try {
         foreach ($items as $item) {
+            $order_id         = $item['inventory_id']       ?? '';
             $ficha            = $item['ficha']            ?? '';
             $sku              = $item['unit_numb']        ?? '';
             $quantity         = (int)($item['quantity']   ?? 0);
@@ -96,25 +97,25 @@ function receive_mpl($conn, $mpl_id) {
             $footage_quantity = (float)($item['footage_quantity'] ?? 0);
 
             // Auto-insert into products if ficha doesn't exist
-            $check = $conn->prepare("SELECT id FROM products WHERE ficha = ?");
-            $check->bind_param("s", $ficha);
+            $check = $conn->prepare("SELECT id FROM products WHERE order_id = ?");
+            $check->bind_param("i", $order_id);
             $check->execute();
             $existing_product = $check->get_result()->fetch_assoc();
 
             if (!$existing_product) {
-                $stmt = $conn->prepare("INSERT INTO products (ficha, sku, description, rate) VALUES (?, ?, ?, 0)");
+                $stmt = $conn->prepare("INSERT INTO products (order_id, ficha, sku, description, rate) VALUES (?, ?, ?, ?, 0)");
                 $stmt->bind_param("iss", $ficha, $sku, $description1);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product for ficha #$ficha");
+                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product for order ID #$order_id");
 
                 $new_product_id = $conn->insert_id;
 
-                $stmt = $conn->prepare("INSERT INTO products_dimensions (id, length_inches, width_inches, height_inches, weight_lbs) VALUES (?, 0, 0, 0, 0)");
+                $stmt = $conn->prepare("INSERT INTO products_dimensions (length_inches, width_inches, height_inches, weight_lbs) VALUES (?, 0, 0, 0, 0)");
                 $stmt->bind_param("i", $new_product_id);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert dimensions for ficha #$ficha");
+                if (!$stmt->execute()) throw new Exception("Failed to auto-insert dimensions for order ID #$order_id");
 
                 $stmt = $conn->prepare("INSERT INTO products_types (ficha, uom_primary, piece_count, assembly) VALUES (?, '', 0, 'FALSE')");
                 $stmt->bind_param("s", $ficha);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product type for ficha #$ficha");
+                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product type for ficha #$order_id");
 
                 // Track that this SKU was auto-created
                 $new_skus[] = "Ficha #$ficha ($sku)";

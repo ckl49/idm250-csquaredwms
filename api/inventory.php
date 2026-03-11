@@ -26,7 +26,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // ── GET: return all inventory ──────────────────────────────────────────────
 if ($method === 'GET') {
-    $sql    = "SELECT id AS inventory_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity FROM inventory";
+    $sql    = "SELECT id AS inventory_id, order_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity FROM inventory";
     $result = $conn->query($sql);
 
     if ($result && $result->num_rows > 0) {
@@ -41,7 +41,7 @@ if ($method === 'GET') {
 } elseif ($method === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
 
-    $required = ['ficha', 'sku', 'quantity', 'description1', 'quantity_unit', 'footage_quantity'];
+    $required = ['order_id','ficha', 'sku', 'quantity', 'description1', 'quantity_unit', 'footage_quantity'];
     foreach ($required as $field) {
         if (!isset($data[$field])) {
             http_response_code(400);
@@ -50,6 +50,7 @@ if ($method === 'GET') {
         }
     }
 
+    $order_id        = (int)$data['order_id'];
     $ficha            = $data['ficha'];
     $sku              = $data['sku'];
     $quantity         = (int)$data['quantity'];
@@ -59,10 +60,10 @@ if ($method === 'GET') {
     $footage_quantity = (float)$data['footage_quantity'];
 
     $stmt = $conn->prepare(
-        "INSERT INTO inventory (ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
+        "INSERT INTO inventory (order_id, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
          VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->bind_param("ssississd",
+    $stmt->bind_param("issississd", $order_id,
         $ficha, $sku, $quantity, $description1, $description2, $quantity_unit, $footage_quantity);
 
     if ($stmt->execute()) {
@@ -83,6 +84,7 @@ if ($method === 'GET') {
     }
 
     $id               = (int)$data['id'];
+    $order_id        = isset($data['order_id']) ? (int)$data['order_id'] : null;
     $ficha            = $data['ficha']            ?? null;
     $sku              = $data['sku']              ?? null;
     $quantity         = isset($data['quantity'])         ? (int)$data['quantity']         : null;
@@ -92,12 +94,12 @@ if ($method === 'GET') {
     $footage_quantity = isset($data['footage_quantity']) ? (float)$data['footage_quantity'] : null;
 
     $stmt = $conn->prepare(
-        "UPDATE inventory SET
+        "UPDATE inventory SET order_id = ?,
             ficha = ?, sku = ?, quantity = ?, description1 = ?,
             description2 = ?, quantity_unit = ?, footage_quantity = ?
          WHERE id = ?"
     );
-    $stmt->bind_param("ssisssdi",
+    $stmt->bind_param("ississsdi", $order_id,
         $ficha, $sku, $quantity, $description1,
         $description2, $quantity_unit, $footage_quantity, $id);
 

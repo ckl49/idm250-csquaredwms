@@ -107,10 +107,10 @@
         foreach ($result as $row) {
             if (!is_array($row)) continue;
             if (($row['reference_numb'] ?? '') === $ref) {
-                $ficha    = $row['ficha']    ?? null;
+                $inventory_id    = $row['inventory_id']    ?? null;
                 $quantity = (int)($row['quantity'] ?? 0);
-                if ($ficha) {
-                    $items[] = ['ficha' => $ficha, 'quantity' => $quantity];
+                if ($order_id) {
+                    $items[] = ['order_id' => $order_id, 'quantity' => $quantity];
                 }
             }
         }
@@ -121,19 +121,19 @@
     
         // Check inventory before touching anything
         foreach ($items as $item) {
-            $stmt = $conn->prepare("SELECT quantity FROM inventory WHERE ficha = ?");
-            $stmt->bind_param("s", $item['ficha']);
+            $stmt = $conn->prepare("SELECT quantity FROM inventory WHERE order_id = ?");
+            $stmt->bind_param("s", $item['order_id']);
             $stmt->execute();
             $inventory = $stmt->get_result()->fetch_assoc();
     
             if (!$inventory) {
-                return ['success' => false, 'error' => "No inventory found for ficha #{$item['ficha']}"];
+                return ['success' => false, 'error' => "No inventory found for order ID #{$item['order_id']}"];
             }
     
             if ($inventory['quantity'] < $item['quantity']) {
                 return [
                     'success' => false,
-                    'error'   => "Insufficient stock for ficha #{$item['ficha']}. Available: {$inventory['quantity']}, Requested: {$item['quantity']}"
+                    'error'   => "Insufficient stock for order ID #{$item['order_id']}. Available: {$inventory['quantity']}, Requested: {$item['quantity']}"
                 ];
             }
         }
@@ -143,9 +143,9 @@
     
         try {
             foreach ($items as $item) {
-                $stmt = $conn->prepare("UPDATE inventory SET quantity = quantity - ? WHERE ficha = ?");
-                $stmt->bind_param("is", $item['quantity'], $item['ficha']);
-                if (!$stmt->execute()) throw new Exception("Inventory update failed for ficha #{$item['ficha']}");
+                $stmt = $conn->prepare("UPDATE inventory SET quantity = quantity - ? WHERE order_id = ?");
+                $stmt->bind_param("is", $item['quantity'], $item['order_id']);
+                if (!$stmt->execute()) throw new Exception("Inventory update failed for order ID #{$item['order_id']}");
             }
     
             $conn->commit();
