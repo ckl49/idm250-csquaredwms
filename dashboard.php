@@ -474,7 +474,6 @@ exit;
 
             <!--  ORDERS  -->
             <section id="ordersSection" style="display:none;">
-              <!-- [REMOVED] Add Order button — orders come from external API -->
               <div id="ordersTable" class="table-container">
                 <table class="data-table">
                   <thead>
@@ -491,12 +490,13 @@ exit;
                   <tbody>
                     <?php if ($orders_array['success']): ?>
                       <?php foreach ($orders_array['data'] as $row):
-                        $order_id  = $row['orders_id'];
-                        $status    = $row['status'];
-                        $confirmed = ($status === 'shipped' || $status === 'accepted' || $status === 'pending');
-                        $disabled  = $confirmed ? 'disabled' : '';
-                        $label     = $confirmed ? ucfirst($status) : 'Ship';
-                      ?>
+    $order_id      = $row['orders_id'];
+    $status        = $row['status'];
+    $confirmed = ($status === 'shipped' || $status === 'accepted');
+$disabled  = $confirmed ? 'disabled' : '';
+$label     = $confirmed ? ucfirst($status) : 'Ship';
+    $item_ids_json = htmlspecialchars(json_encode($row['item_ids']), ENT_QUOTES);
+?>
                         <tr class="order-header-row" onclick="toggleOrderItems(<?= $order_id ?>)">
                           <td><?= htmlspecialchars($order_id)              ?></td>
                           <td><?= htmlspecialchars($row['reference_numb']) ?></td>
