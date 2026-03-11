@@ -676,14 +676,12 @@ exit;
                         <?php if ($sku['piece_count']): ?>
                           <span class="sku-tag"><?= htmlspecialchars($sku['piece_count']) ?> pcs</span>
                         <?php endif; ?>
-                        <?php if ($sku['length_inches']): ?>
-                          <span class="sku-tag"><?= htmlspecialchars($sku['length_inches']) ?>" L</span>
-                        <?php endif; ?>
-                        <?php if ($sku['width_inches']): ?>
-                          <span class="sku-tag"><?= htmlspecialchars($sku['width_inches']) ?>" W</span>
-                        <?php endif; ?>
-                        <?php if ($sku['height_inches']): ?>
-                          <span class="sku-tag"><?= htmlspecialchars($sku['height_inches']) ?>" H</span>
+                        <?php if ($sku['length_inches'] || $sku['width_inches'] || $sku['height_inches']): ?>
+                          <span class="sku-tag">
+                            <?= htmlspecialchars($sku['length_inches']) ?>″
+                            x <?= htmlspecialchars($sku['width_inches']) ?>″
+                            x <?= htmlspecialchars($sku['height_inches']) ?>″
+                          </span>
                         <?php endif; ?>
                         <?php if ($sku['weight_lbs']): ?>
                           <span class="sku-tag"><?= htmlspecialchars($sku['weight_lbs']) ?> lbs</span>
