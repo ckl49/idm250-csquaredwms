@@ -28,8 +28,8 @@ function fetch_mpl($conn) {
             'item_id'          => $row['item_id']          ?? '',
             'ficha'            => $row['ficha']            ?? '',
             'unit_numb'        => $row['unit_numb']        ?? '',
-            'description1'     => $row['description1']    ?? '',
-            'description2'     => $row['description2']    ?? '',
+            'description1'     => $row['description1']     ?? '',
+            'description2'     => $row['description2']     ?? '',
             'quantity'         => $row['quantity']         ?? '',
             'quantity_unit'    => $row['quantity_unit']    ?? '',
             'footage_quantity' => $row['footage_quantity'] ?? ''
@@ -41,7 +41,8 @@ function fetch_mpl($conn) {
 
 
 function receive_mpl($conn, $mpl_id) {
-    // 1. FETCH THE SPECIFIC MPL ROW FROM EXTERNAL API
+
+    // 1. FETCH ALL MPL DATA FROM EXTERNAL API
     $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api-mpl.php";
     $opts   = ['http' => ['method' => 'GET', 'header' => "x-api-key: test\r\n", 'ignore_errors' => true]];
     $result = json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
@@ -50,7 +51,7 @@ function receive_mpl($conn, $mpl_id) {
         return ['success' => false, 'error' => "Could not fetch MPL data"];
     }
 
-    // Find the reference_numb for this mpl_id and check status
+    // 2. FIND reference_numb AND STATUS FOR THIS mpl_id
     $ref    = null;
     $status = null;
     foreach ($result as $row) {
@@ -65,11 +66,11 @@ function receive_mpl($conn, $mpl_id) {
         return ['success' => false, 'error' => "MPL #$mpl_id not found"];
     }
 
-    if ($status === 'received') {
+    if ($status === 'received' || $status === 'accepted') {
         return ['success' => false, 'error' => "MPL #$mpl_id has already been received"];
     }
 
-    // 2. COLLECT ALL ITEMS FOR THIS reference_numb
+    // 3. COLLECT ALL ITEMS FOR THIS reference_numb
     $items = [];
     foreach ($result as $row) {
         if ($row['reference_numb'] === $ref) {
@@ -81,82 +82,56 @@ function receive_mpl($conn, $mpl_id) {
         return ['success' => false, 'error' => "No items found for MPL #$mpl_id"];
     }
 
-    // 3. TRANSACTION: add to inventory
+    // 4. TRANSACTION: insert one inventory row per item
     $conn->begin_transaction();
-    $new_skus = [];  // track auto-created SKUs
 
     try {
         foreach ($items as $item) {
-            $order_id         = $item['inventory_id']       ?? '';
+            $item_id          = $item['item_id']          ?? null;
+            $unit_numb        = $item['unit_numb']        ?? '';
             $ficha            = $item['ficha']            ?? '';
-            $sku              = $item['unit_numb']        ?? '';
-            $quantity         = (int)($item['quantity']   ?? 0);
-            $description1     = $item['description1']     ?? 'Imported from MPL';
+            $quantity         = (int)($item['quantity']   ?? 1);
+            $description1     = $item['description1']     ?? '';
             $description2     = $item['description2']     ?? '';
             $quantity_unit    = $item['quantity_unit']    ?? '';
             $footage_quantity = (float)($item['footage_quantity'] ?? 0);
 
-            // Auto-insert into products if ficha doesn't exist
-            $check = $conn->prepare("SELECT id FROM products WHERE order_id = ?");
-            $check->bind_param("i", $order_id);
-            $check->execute();
-            $existing_product = $check->get_result()->fetch_assoc();
+            // Look up SKU from ashley.products using ficha
+            $sku_stmt = $conn->prepare("SELECT sku FROM ashley.products WHERE ficha = ? LIMIT 1");
+            $sku_stmt->bind_param("s", $ficha);
+            $sku_stmt->execute();
+            $sku_row = $sku_stmt->get_result()->fetch_assoc();
+            $sku     = $sku_row['sku'] ?? '';  // empty string if ficha not found in products table
 
-            if (!$existing_product) {
-                $stmt = $conn->prepare("INSERT INTO products (order_id, ficha, sku, description, rate) VALUES (?, ?, ?, ?, 0)");
-                $stmt->bind_param("iss", $ficha, $sku, $description1);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product for order ID #$order_id");
+            // Insert one row per individual unit — no grouping, no quantity merging
+            $stmt = $conn->prepare(
+                "INSERT INTO inventory
+                    (order_id, unit_numb, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            $stmt->bind_param(
+                "isssisssd",
+                $item_id,
+                $unit_numb,
+                $ficha,
+                $sku,
+                $quantity,
+                $description1,
+                $description2,
+                $quantity_unit,
+                $footage_quantity
+            );
 
-                $new_product_id = $conn->insert_id;
-
-                $stmt = $conn->prepare("INSERT INTO products_dimensions (length_inches, width_inches, height_inches, weight_lbs) VALUES (?, 0, 0, 0, 0)");
-                $stmt->bind_param("i", $new_product_id);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert dimensions for order ID #$order_id");
-
-                $stmt = $conn->prepare("INSERT INTO products_types (ficha, uom_primary, piece_count, assembly) VALUES (?, '', 0, 'FALSE')");
-                $stmt->bind_param("s", $ficha);
-                if (!$stmt->execute()) throw new Exception("Failed to auto-insert product type for ficha #$order_id");
-
-                // Track that this SKU was auto-created
-                $new_skus[] = "Ficha #$ficha ($sku)";
-            }
-
-            // Check if ficha already exists in inventory
-            $check = $conn->prepare("SELECT id FROM inventory WHERE ficha = ?");
-            $check->bind_param("s", $ficha);
-            $check->execute();
-            $existing = $check->get_result()->fetch_assoc();
-
-            if ($existing) {
-                $stmt = $conn->prepare("UPDATE inventory SET quantity = quantity + ? WHERE ficha = ?");
-                $stmt->bind_param("is", $quantity, $ficha);
-                if (!$stmt->execute()) throw new Exception("Inventory update failed for ficha #$ficha");
-            } else {
-                $stmt = $conn->prepare(
-                    "INSERT INTO inventory (ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)"
-                );
-                $stmt->bind_param("ssisssd",
-                    $ficha, $sku, $quantity, $description1,
-                    $description2, $quantity_unit, $footage_quantity);
-                if (!$stmt->execute()) throw new Exception("Inventory insert failed for ficha #$ficha");
+            if (!$stmt->execute()) {
+                throw new Exception("Inventory insert failed for unit #$unit_numb (ficha $ficha): " . $stmt->error);
             }
         }
 
         $conn->commit();
 
-        // Build response message
-        $message = "MPL #$mpl_id received. Inventory updated.";
-        $warnings = null;
-
-        if (!empty($new_skus)) {
-            $warnings = "New SKUs auto-created (please complete their details): " . implode(', ', $new_skus);
-        }
-
         return [
-            'success'  => true,
-            'message'  => $message,
-            'warnings' => $warnings
+            'success' => true,
+            'message' => "MPL #$mpl_id received. " . count($items) . " unit(s) added to inventory."
         ];
 
     } catch (Exception $e) {

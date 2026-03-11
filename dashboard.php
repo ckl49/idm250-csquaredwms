@@ -115,6 +115,7 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
     $uom         = trim($_POST['uom_primary']     ?? '');
     $piece_count = intval($_POST['piece_count']   ?? 0);
     $assembly    = trim($_POST['assembly']        ?? 'FALSE');
+    
 
     if (!$ficha || !$sku_val || !$description) {
       $sku_form_error = 'Ficha, SKU, and Description are required.';
@@ -135,12 +136,13 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
         if (!$stmt->execute()) throw new Exception("Failed to insert type: " . $stmt->error);
 
         $conn->commit();
-header("Location: dashboard.php?section=skus&sku_added=1");
-exit;
+        header("Location: dashboard.php?section=skus&sku_added=1");
+        exit;
+
       } catch (Exception $e) {
-        $conn->rollback();
-        $sku_form_error = $e->getMessage();
-      }
+          $conn->rollback();
+          $sku_form_error = $e->getMessage();
+        }
     }
   }
 
@@ -155,15 +157,22 @@ exit;
     $description2     = trim($_POST['description2']        ?? '');
     $quantity_unit    = trim($_POST['quantity_unit']        ?? '');
     $footage_quantity = floatval($_POST['footage_quantity'] ?? 0);
+    $unit_numb = trim($_POST['unit_numb'] ?? '');
+    $order_id  = intval($_POST['order_id'] ?? 0);
 
     if (!$ficha || !$sku_i || !$description1) {
       $inv_form_error = 'Ficha, SKU, and Description 1 are required.';
+
     } else {
-      $stmt = $conn->prepare("INSERT INTO inventory (ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)");
-      $stmt->bind_param("ssisssd", $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity);
+      $stmt = $conn->prepare("INSERT INTO inventory (order_id, unit_numb, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+      
+      $stmt->bind_param("issssissd", $order_id, $unit_numb, $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity);
+
       if ($stmt->execute()) {
         header("Location: dashboard.php?section=inventory&item_added=1"); exit;
+
       } else {
+
         $inv_form_error = 'Database error: ' . $stmt->error;
       }
     }
@@ -178,12 +187,17 @@ exit;
     $description2     = trim($_POST['description2']         ?? '');
     $quantity_unit    = trim($_POST['quantity_unit']         ?? '');
     $footage_quantity = floatval($_POST['footage_quantity']  ?? 0);
+    $unit_numb = trim($_POST['unit_numb'] ?? '');
+    $order_id  = intval($_POST['order_id'] ?? 0);
+
 
     if (!$inv_id || !$ficha || !$sku_i || !$description1) {
       $inv_form_error = 'All required fields must be filled.';
+
     } else {
-      $stmt = $conn->prepare("UPDATE inventory SET ficha=?, sku=?, quantity=?, description1=?, description2=?, quantity_unit=?, footage_quantity=? WHERE id=?");
-      $stmt->bind_param("ssisssdi", $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity, $inv_id);
+      $stmt = $conn->prepare("UPDATE inventory SET order_id=?, unit_numb=?, ficha=?, sku=?, quantity=?, description1=?, description2=?, quantity_unit=?, footage_quantity=? WHERE id=?");
+      $stmt->bind_param("issssissdi", $order_id, $unit_numb, $ficha, $sku_i, $quantity, $description1, $description2, $quantity_unit, $footage_quantity, $inv_id);
+
       if ($stmt->execute()) {
         header("Location: dashboard.php?section=inventory&item_updated=1"); exit;
       } else {
@@ -426,6 +440,7 @@ exit;
                     <tr>
                       <th>ID</th>
                       <th>Order ID</th>
+                      <th>Unit #</th>
                       <th>SKU</th>
                       <th>FICHA</th>
                       <th>Quantity</th>
@@ -441,19 +456,21 @@ exit;
                       <?php foreach ($inventory_array['data'] as $row): ?>
                         <tr>
                           <td><?= htmlspecialchars($row['inventory_id'])     ?></td>
-                          <td><?= htmlspecialchars($row['order_id'])          ?></td>
+                          <td><?= htmlspecialchars($row['order_id'])         ?></td>
+                          <td><?= htmlspecialchars($row['unit_numb'])          ?></td>
                           <td><?= htmlspecialchars($row['sku'])              ?></td>
                           <td><?= htmlspecialchars($row['ficha'])            ?></td>
                           <td><?= htmlspecialchars($row['quantity'])         ?></td>
                           <td><?= htmlspecialchars($row['quantity_unit'])    ?></td>
                           <td><?= htmlspecialchars($row['description1'])     ?></td>
                           <td><?= htmlspecialchars($row['description2'])     ?></td>
-                          <td><?= htmlspecialchars($row['footage_quantity']) ?></td>
+                          <td><?= htmlspecialchars( $row['footage_quantity']) ?></td>
                           <td>
                             <div class="actions-div">
                               <button class="sku-btn-edit" onclick="openEditInventory(
                                 <?= intval($row['inventory_id']) ?>,
                                 <?= intval($row['order_id']) ?>,
+                                '<?= addslashes($row['unit_numb'] ?? '') ?>',
                                 '<?= addslashes($row['ficha']) ?>',
                                 '<?= addslashes($row['sku']) ?>',
                                 <?= intval($row['quantity']) ?>,
