@@ -1,100 +1,58 @@
-# MPL API Documentation (mpl.php)
+# MPL API Documentation
 
-## Overview
-
-**Endpoint**  
+## Endpoint
 `https://digmstudents.westphal.drexel.edu/~ckl49/idm250-csquaredwms/api/mpl.php`
 
-**Supported Methods**  
-GET, POST, DELETE
+## Methods
+- `GET`
+- `POST`
+- `DELETE`
 
-**Content-Type**  
+## Content Type
 `application/json`
 
-**CORS**  
-`Access-Control-Allow-Origin: *`
+## Authentication
+You must be authenticated with either:
+- a valid PHP session
+- an `x-api-key` header
 
-**Authentication**  
-Required.
-
-This API supports two authentication methods:
-
-If authentication is not present, the API returns:
-
-HTTP 401
+### Unauthorized Response
 ```json
-{ "error": "Unauthorized" }
+{
+  "error": "Unauthorized"
+}
 ```
 
-**Request Type**  
-All interactions are performed using HTTP requests that return JSON responses.
+## Fields
 
----
+### Create MPL Fields
+- `reference_numb` (required)
+- `trailer_name` (required)
+- `ship_date` (required)
+- `items` (optional array)
 
-## Data Model: mpl Table
+### Receive MPL Fields
+- `action`: `"receive"`
+- `mpl_id` (required)
 
-| Field Name        | Type    | Required (POST create) | Notes |
-|------------------|---------|------------------------|-------|
-| id               | integer | Auto-generated         | Primary identifier |
-| order_number     | integer | Yes                    | Supplier order reference |
-| truck_number     | integer | Yes                    | Truck identifier |
-| expected_delivery| string  | Yes                    | Stored as string. Format not validated in code |
+### Delete Fields
+- `id` (required)
 
----
-
-## Data Model: mpl_items Table
-
-Each MPL record may contain multiple unit entries stored in `mpl_items`.
-
-| Field Name      | Type          | Required (POST create) | Notes |
-|----------------|--------------|------------------------|-------|
-| id             | integer      | Auto-generated         | Primary key |
-| mpl_id         | integer      | Auto-set               | References mpl.id |
-| order_number   | integer      | Optional               | Present in DB |
-| ficha          | integer      | Expected               | Item reference |
-| quantity       | integer      | Expected               | Quantity received |
-| description    | string       | Expected               | Item description |
-| sku            | string       | Expected               | Stock keeping unit |
-| uom_primary    | string       | Expected               | Unit of measure |
-| piece_count    | integer      | Expected               | Pieces per unit |
-| length_inches  | decimal      | Expected               | Length |
-| width_inches   | decimal      | Expected               | Width |
-| height_inches  | decimal      | Expected               | Height |
-| weight_lbs     | decimal      | Expected               | Weight |
-| assembly       | string       | Expected               | Yes/No |
-| rate           | decimal      | Expected               | Unit rate |
-
-Note: The current PHP snippet only inserts a subset of these fields. The database schema supports full unit details.
-
----
-
-## Response Format
-
-### Success Responses
+### Item Format
 ```json
-{ "success": true, "data": [...] }
-{ "success": true, "data": "New MPL created successfully" }
-{ "success": true, "message": "MPL 5 deleted successfully" }
+{
+  "item_id": 123
+}
 ```
 
-### Error Responses
-```json
-{ "success": false, "error": "No MPL records found" }
-{ "error": "Bad Request", "details": "Missing required field(s)" }
-{ "error": "Bad Request", "details": "mpl_id is required" }
-{ "success": false, "error": "Database error: <error message>" }
-{ "error": "Unauthorized" }
-{ "error": "Method Not Allowed" }
-```
+## GET
+Gets MPL records from this external API:
 
----
+`https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api-mpl.php`
 
-# GET Method
-
-Returns all records from the `mpl` table.
-
-### Request
-No request body required.
+The request uses:
+- method: `GET`
+- header: `x-api-key: test`
 
 ### Success Response
 ```json
@@ -102,109 +60,77 @@ No request body required.
   "success": true,
   "data": [
     {
-      "id": 3,
-      "order_number": 44,
-      "truck_number": 3,
-      "expected_delivery": "2026-05-01"
+      "id": 12,
+      "reference_numb": "REF-1001",
+      "trailer_name": "TR-7",
+      "ship_date": "2026-03-15",
+      "status": "pending"
     }
   ]
 }
 ```
 
-Important: This endpoint returns data from `mpl` only. It does not automatically return associated `mpl_items`.
-
----
-
-# POST Method
-
-The POST method supports two actions:
-
-- Default action: Create a new MPL record
-- `action: "receive"`: Mark an MPL as received
-
----
-
-## POST Action: Create MPL (default)
-
-Creates a new MPL record and inserts related unit details into `mpl_items`.
-
-### Required Top-Level Fields
-
-- `order_number`
-- `truck_number`
-- `expected_delivery`
-
-### Optional Field
-
-- `units` (array of full unit detail objects)
-
-### Example JSON Body
-
+### No Records Response
 ```json
 {
-  "order_number": 44,
-  "truck_number": 3,
-  "expected_delivery": "2026-05-01",
-  "units": [
+  "success": false,
+  "error": "No MPL records found"
+}
+```
+
+## POST
+POST supports 2 actions:
+- create a new MPL
+- receive an MPL
+
+If `action` is not included, it creates a new MPL.
+
+### POST Create MPL
+
+#### Required Fields
+- `reference_numb`
+- `trailer_name`
+- `ship_date`
+
+#### Optional Fields
+- `items`
+
+#### Example Request
+```json
+{
+  "reference_numb": "REF-1001",
+  "trailer_name": "TR-7",
+  "ship_date": "2026-03-15",
+  "items": [
     {
-      "ficha": 101,
-      "sku": "SKU-001",
-      "description": "Red Chair",
-      "quantity": 20,
-      "uom_primary": "EA",
-      "piece_count": 1,
-      "length_inches": 24.5,
-      "width_inches": 18.0,
-      "height_inches": 36.0,
-      "weight_lbs": 15.5,
-      "assembly": "No",
-      "rate": 99.99
+      "item_id": 123
     },
     {
-      "ficha": 102,
-      "sku": "SKU-002",
-      "description": "Blue Table",
-      "quantity": 15,
-      "uom_primary": "EA",
-      "piece_count": 1,
-      "length_inches": 48.0,
-      "width_inches": 24.0,
-      "height_inches": 30.0,
-      "weight_lbs": 25.0,
-      "assembly": "No",
-      "rate": 149.99
+      "item_id": 456
     }
   ]
 }
 ```
 
-### Missing Required Fields
-
-HTTP 400
-```json
-{
-  "error": "Bad Request",
-  "details": "Missing required field(s)"
-}
-```
-
-### Success Response
-
-HTTP 201
+#### Success Response
 ```json
 {
   "success": true,
-  "data": "New MPL created successfully"
+  "message": "MPL created successfully"
 }
 ```
 
----
+#### Missing Fields Response
+```json
+{
+  "error": "Bad Request",
+  "details": "Missing required field(s): reference_numb, trailer_name, ship_date"
+}
+```
 
-## POST Action: Receive MPL
+### POST Receive MPL
 
-Marks an MPL as received using `receive_mpl()`.
-
-### Required JSON Body
+#### Example Request
 ```json
 {
   "action": "receive",
@@ -212,22 +138,15 @@ Marks an MPL as received using `receive_mpl()`.
 }
 ```
 
-### Missing mpl_id
-
-HTTP 400
+If successful, the API also sends this to the external API:
 ```json
 {
-  "error": "Bad Request",
-  "details": "mpl_id is required"
+  "id": 3,
+  "status": "accepted"
 }
 ```
 
-### Success / Failure Status Codes
-
-- HTTP 200 if receiving succeeds
-- HTTP 422 if receiving fails
-
-### Example Success Response
+#### Success Response
 ```json
 {
   "success": true,
@@ -235,24 +154,29 @@ HTTP 400
 }
 ```
 
----
-
-# DELETE Method
-
-Deletes an MPL record using `id`.
-
-### Required JSON Body
+#### Missing `mpl_id` Response
 ```json
 {
-  "id": 3
+  "error": "Bad Request",
+  "details": "mpl_id is required"
 }
 ```
 
-### Missing id
+#### Failure Response
 ```json
 {
   "success": false,
-  "error": "ID is required for deletion"
+  "message": "MPL receive failed"
+}
+```
+
+## DELETE
+Deletes an MPL by `id`.
+
+### Example Request
+```json
+{
+  "id": 3
 }
 ```
 
@@ -264,7 +188,15 @@ Deletes an MPL record using `id`.
 }
 ```
 
-### Not Found
+### Missing ID Response
+```json
+{
+  "success": false,
+  "error": "ID is required for deletion"
+}
+```
+
+### Not Found Response
 ```json
 {
   "success": false,
@@ -272,15 +204,16 @@ Deletes an MPL record using `id`.
 }
 ```
 
----
-
-# Unsupported Methods
-
-Any HTTP method other than GET, POST, DELETE returns:
-
-HTTP 405
+## Method Not Allowed
 ```json
 {
   "error": "Method Not Allowed"
 }
 ```
+
+## Notes
+- `GET` pulls data from the external MPL API, not the local database.
+- `POST` create saves a new MPL locally with status `"draft"`.
+- `POST` receive marks an MPL as received and sends `"accepted"` to the external API.
+- `DELETE` removes an MPL by `id`.
+- This API uses `reference_numb`, `trailer_name`, `ship_date`, and `items`.

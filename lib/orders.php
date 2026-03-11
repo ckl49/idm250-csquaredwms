@@ -107,11 +107,7 @@
         foreach ($result as $row) {
             if (!is_array($row)) continue;
             if (($row['reference_numb'] ?? '') === $ref) {
-                $inventory_id    = $row['inventory_id']    ?? null;
-                $quantity = (int)($row['quantity'] ?? 0);
-                if ($order_id) {
-                    $items[] = ['order_id' => $order_id, 'quantity' => $quantity];
-                }
+                $items[] = ['unit_numb' => $row['unit_numb'] ?? null];
             }
         }
     
@@ -121,41 +117,41 @@
     
         // Check inventory before touching anything
         foreach ($items as $item) {
-            $stmt = $conn->prepare("SELECT quantity FROM inventory WHERE order_id = ?");
-            $stmt->bind_param("s", $item['order_id']);
+            $stmt = $conn->prepare("SELECT id FROM inventory WHERE unit_numb = ?");
+            $stmt->bind_param("s", $item['unit_numb']);
             $stmt->execute();
-            $inventory = $stmt->get_result()->fetch_assoc();
-    
-            if (!$inventory) {
-                return ['success' => false, 'error' => "No inventory found for order ID #{$item['order_id']}"];
+            $found = $stmt->get_result()->fetch_assoc();
+        
+            if (!$found) {
+                return ['success' => false, 'error' => "Unit #{$item['unit_numb']} not found in inventory"];
             }
+        }
     
-            if ($inventory['quantity'] < $item['quantity']) {
+            if ($found['quantity'] < $item['quantity']) {
                 return [
                     'success' => false,
-                    'error'   => "Insufficient stock for order ID #{$item['order_id']}. Available: {$inventory['quantity']}, Requested: {$item['quantity']}"
+                    'error'   => "Insufficient stock for order ID #{$item['order_id']}. Available: {$found['quantity']}, Requested: {$item['quantity']}"
                 ];
             }
         }
     
         // Transaction: deduct inventory
         $conn->begin_transaction();
-    
-        try {
-            foreach ($items as $item) {
-                $stmt = $conn->prepare("UPDATE inventory SET quantity = quantity - ? WHERE order_id = ?");
-                $stmt->bind_param("is", $item['quantity'], $item['order_id']);
-                if (!$stmt->execute()) throw new Exception("Inventory update failed for order ID #{$item['order_id']}");
+            try {
+                foreach ($items as $item) {
+                    $stmt = $conn->prepare("DELETE FROM inventory WHERE unit_numb = ? LIMIT 1");
+                    $stmt->bind_param("s", $item['unit_numb']);
+                    if (!$stmt->execute()) {
+                        throw new Exception("Failed to remove unit #{$item['unit_numb']} from inventory");
+                    }
+                }
+                $conn->commit();
+                return ['success' => true, 'message' => "Order #$order_id shipped. " . count($items) . " unit(s) removed from inventory."];
+            } catch (Exception $e) {
+                $conn->rollback();
+                return ['success' => false, 'error' => $e->getMessage()];
             }
     
-            $conn->commit();
-            return ['success' => true, 'message' => "Order #$order_id shipped. Inventory updated."];
-    
-        } catch (Exception $e) {
-            $conn->rollback();
-            return ['success' => false, 'error' => $e->getMessage()];
-        }
-    }
 
     function edit_orders() {
         // Placeholder 
