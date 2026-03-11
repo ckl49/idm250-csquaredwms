@@ -14,7 +14,7 @@
                 || isset($headers['x-api-key']) || isset($headers['X-Api-Key']);
 
     if ($has_session) {
-        // internal — session is enough
+
     } elseif ($has_api_key) {
         check_api_key($env);
     } else {
@@ -23,17 +23,14 @@
         exit;
     }
 
-    // -------------------------------------------------------
-    // Shared helper — forwards JSON requests to external API
-    // -------------------------------------------------------
-    define('EXTERNAL_API', 'https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php');
-    define('EXTERNAL_KEY', 'test');
+    $external_api_url = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
+    $external_api_key = $env['X_API_KEY'];
 
-    function call_external_api(string $method, ?array $body = null): array {
+    function call_external_api(string $method, string $url, string $key, ?array $body = null): array {
         $options = [
             'http' => [
                 'method'        => $method,
-                'header'        => "Content-Type: application/json\r\nx-api-key: " . EXTERNAL_KEY . "\r\n",
+                'header'        => "Content-Type: application/json\r\nx-api-key: " . $key . "\r\n",
                 'ignore_errors' => true,
             ]
         ];
@@ -43,7 +40,7 @@
         }
 
         $context  = stream_context_create($options);
-        $response = @file_get_contents(EXTERNAL_API, false, $context);
+        $response = @file_get_contents($url, false, $context);
 
         if ($response === false) {
             return ['success' => false, 'error' => 'Could not reach external API'];
@@ -56,10 +53,10 @@
     $method = $_SERVER['REQUEST_METHOD'];
 
     // -------------------------------------------------------
-    // GET — proxy read from external API
+    // GET — read from external API
     // -------------------------------------------------------
     if ($method === 'GET') {
-        $result = call_external_api('GET');
+        $result = call_external_api('GET', $external_api_url, $external_api_key);
         http_response_code(isset($result['error']) ? 502 : 200);
         echo json_encode($result);
 
@@ -71,39 +68,47 @@
         $action = $data['action'] ?? 'create';
 
         if ($action === 'ship') {
-            $item_ids     = $data['item_ids']     ?? [];
-            $reference    = $data['reference']    ?? '';
-            $ship_date    = $data['ship_date']    ?? '';
-            $trailer_name = $data['trailer_name'] ?? '';
+            $order_id     = $data['order_id']     ?? null;
+            $item_ids     = $data['item_ids']      ?? [];
+            $reference    = $data['reference']     ?? '';
+            $ship_date    = $data['ship_date']     ?? '';
+            $trailer_name = $data['trailer_name']  ?? '';
 
-            if (empty($item_ids)) {
+            if (!$order_id || empty($item_ids)) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Bad Request', 'details' => 'item_ids are required']);
+                echo json_encode(['error' => 'Bad Request', 'details' => 'order_id and item_ids are required']);
                 exit;
             }
 
-            $external_result = call_external_api('POST', [
-                 'reference'      => $reference,
-                 'date'           => $ship_date,
-                 'truck'          => $trailer_name,
-                 'selected_items' => $item_ids
+            // 1. Deduct from local inventory first
+            $local_result = ship_order($conn, $order_id);
+
+            if (!$local_result['success']) {
+                http_response_code(422);
+                echo json_encode($local_result);
+                exit;
+            }
+
+            // 2. Only notify external API if local succeeded
+            $external_result = call_external_api('POST', $external_api_url, $external_api_key, [
+                'reference'      => $reference,
+                'date'           => $ship_date,
+                'truck'          => $trailer_name,
+                'selected_items' => $item_ids
             ]);
 
-            http_response_code(empty($errors) ? 200 : 422);
-            echo json_encode(empty($errors)
-                ? ['success' => true,  'message' => 'Order shipped and inventory updated.']
-                : ['success' => false, 'error'   => implode(', ', $errors)]
-            );
+            http_response_code(200);
+            echo json_encode(['success' => true, 'message' => 'Order shipped and inventory updated.']);
 
         } else {
-            // CREATE — validate then forward to external API
+            // CREATE
             if (!isset($data['reference_numb'], $data['ship_date'], $data['trailer_name'], $data['items'])) {
                 http_response_code(400);
                 echo json_encode(['error' => 'Bad Request', 'details' => 'Missing required field(s)']);
                 exit;
             }
 
-            $result = call_external_api('POST', [
+            $result = call_external_api('POST', $external_api_url, $external_api_key, [
                 'reference'      => $data['reference_numb'],
                 'date'           => $data['ship_date'],
                 'truck'          => $data['trailer_name'],
@@ -126,7 +131,7 @@
             exit;
         }
 
-        $result = call_external_api('PUT', $data);
+        $result = call_external_api('PUT', $external_api_url, $external_api_key, $data);
         http_response_code(isset($result['success']) && $result['success'] ? 200 : 422);
         echo json_encode($result);
 
@@ -142,7 +147,7 @@
             exit;
         }
 
-        $result = call_external_api('DELETE', $data);
+        $result = call_external_api('DELETE', $external_api_url, $external_api_key, $data);
         http_response_code(isset($result['success']) && $result['success'] ? 200 : 422);
         echo json_encode($result);
 

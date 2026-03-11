@@ -74,38 +74,55 @@
 
     function ship_order($conn, $order_id) {
 
-        // 1. FETCH ORDER STATUS
-        $sql  = "SELECT status FROM orders WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $order_id);
-        $stmt->execute();
-        $order = $stmt->get_result()->fetch_assoc();
+        $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
+        $opts   = ['http' => ['method' => 'GET', 'header' => "x-api-key: test\r\n", 'ignore_errors' => true]];
+        $result = json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
     
-        if (!$order) {
-            return ['success' => false, 'error' => "Order #$order_id not found"];
+        if (empty($result) || !is_array($result)) {
+            return ['success' => false, 'error' => "Could not fetch orders from external API"];
         }
     
-        if ($order['status'] === 'shipped') {
+        // Find the reference_numb for this order_id
+        $ref    = null;
+        $status = null;
+        foreach ($result as $row) {
+            if (!is_array($row)) continue;
+            if ((string)($row['id'] ?? '') === (string)$order_id) {
+                $ref    = $row['reference_numb'];
+                $status = $row['status'];
+                break;
+            }
+        }
+    
+        if (!$ref) {
+            return ['success' => false, 'error' => "Order #$order_id not found in external API"];
+        }
+    
+        if ($status === 'shipped') {
             return ['success' => false, 'error' => "Order #$order_id is already shipped"];
         }
     
-        // 2. FETCH ALL ITEMS ON THIS ORDER
-        $sql  = "SELECT ficha, quantity FROM orders_items WHERE order_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $order_id);
-        $stmt->execute();
-        $items = $stmt->get_result();
+        // Collect ALL items for this reference_numb
+        $items = [];
+        foreach ($result as $row) {
+            if (!is_array($row)) continue;
+            if (($row['reference_numb'] ?? '') === $ref) {
+                $ficha    = $row['ficha']    ?? null;
+                $quantity = (int)($row['quantity'] ?? 0);
+                if ($ficha) {
+                    $items[] = ['ficha' => $ficha, 'quantity' => $quantity];
+                }
+            }
+        }
     
-        if ($items->num_rows === 0) {
+        if (empty($items)) {
             return ['success' => false, 'error' => "No items found for order #$order_id"];
         }
     
-        // 3. CHECK ALL INVENTORY BEFORE TOUCHING ANYTHING
-        $items_array = [];
-        while ($item = $items->fetch_assoc()) {
-            $sql  = "SELECT quant_instock FROM inventory WHERE ficha = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("i", $item['ficha']);
+        // Check inventory before touching anything
+        foreach ($items as $item) {
+            $stmt = $conn->prepare("SELECT quantity FROM inventory WHERE ficha = ?");
+            $stmt->bind_param("s", $item['ficha']);
             $stmt->execute();
             $inventory = $stmt->get_result()->fetch_assoc();
     
@@ -113,39 +130,26 @@
                 return ['success' => false, 'error' => "No inventory found for ficha #{$item['ficha']}"];
             }
     
-            if ($inventory['quant_instock'] < $item['quantity']) {
+            if ($inventory['quantity'] < $item['quantity']) {
                 return [
                     'success' => false,
-                    'error'   => "Insufficient stock for ficha #{$item['ficha']}. Available: {$inventory['quant_instock']}, Requested: {$item['quantity']}"
+                    'error'   => "Insufficient stock for ficha #{$item['ficha']}. Available: {$inventory['quantity']}, Requested: {$item['quantity']}"
                 ];
             }
-    
-            $items_array[] = $item;
         }
     
-        // 4. TRANSACTION: Deduct from inventory and ship order
+        // Transaction: deduct inventory
         $conn->begin_transaction();
     
         try {
-            foreach ($items_array as $item) {
-                $sql  = "UPDATE inventory SET quant_instock = quant_instock - ? WHERE ficha = ?";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ii", $item['quantity'], $item['ficha']);
+            foreach ($items as $item) {
+                $stmt = $conn->prepare("UPDATE inventory SET quantity = quantity - ? WHERE ficha = ?");
+                $stmt->bind_param("is", $item['quantity'], $item['ficha']);
                 if (!$stmt->execute()) throw new Exception("Inventory update failed for ficha #{$item['ficha']}");
             }
     
-            // Mark order as shipped
-            $sql  = "UPDATE orders SET status = 'shipped' WHERE id = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("i", $order_id);
-            if (!$stmt->execute()) throw new Exception("Order status update failed");
-    
             $conn->commit();
-    
-            return [
-                'success' => true,
-                'message' => "Order #$order_id shipped. Inventory updated."
-            ];
+            return ['success' => true, 'message' => "Order #$order_id shipped. Inventory updated."];
     
         } catch (Exception $e) {
             $conn->rollback();

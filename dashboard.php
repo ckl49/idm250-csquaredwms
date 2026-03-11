@@ -8,6 +8,11 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
   require_once "lib/mpl.php";
   require_once "lib/logout.php";
 
+  if (!isset($_SESSION["username"])) {
+    header('Location: index.php');
+    exit;
+  }
+
   if (isset($_GET['logout']))  logout();
   if (isset($_POST['logout'])) logout();
 
@@ -31,17 +36,17 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
     if ($product_id && $sku_val && $description) {
       $conn->begin_transaction();
       try {
-        // Update products
+        // Update ashley.products
         $stmt = $conn->prepare("UPDATE ashley.products SET ficha=?, sku=?, description=?, rate=? WHERE id=?");
         $stmt->bind_param("issdi", $ficha, $sku_val, $description, $rate, $product_id);
         if (!$stmt->execute()) throw new Exception("Failed to update product: " . $stmt->error);
 
-        // Update products_dimensions
+        // Update ashley.products_dimensions
         $stmt = $conn->prepare("UPDATE ashley.products_dimensions SET length_inches=?, width_inches=?, height_inches=?, weight_lbs=? WHERE id=?");
         $stmt->bind_param("ddddi", $length, $width, $height, $weight, $product_id);
         if (!$stmt->execute()) throw new Exception("Failed to update dimensions: " . $stmt->error);
 
-        // Update products_types (matched by ficha)
+        // Update ashley.products_types (matched by ficha)
         $stmt = $conn->prepare("UPDATE ashley.products_types SET uom_primary=?, piece_count=?, assembly=? WHERE ficha=?");
         $stmt->bind_param("sisi", $uom, $piece_count, $assembly, $ficha);
         if (!$stmt->execute()) throw new Exception("Failed to update type: " . $stmt->error);
@@ -486,12 +491,11 @@ exit;
                   <tbody>
                     <?php if ($orders_array['success']): ?>
                       <?php foreach ($orders_array['data'] as $row):
-                        $order_id      = $row['orders_id'];
-                        $status        = $row['status'];
-                        $confirmed     = $status === 'shipped';
-                        $disabled      = $confirmed ? 'disabled' : '';
-                        $label         = $confirmed ? 'Shipped'  : 'Ship';
-                        $item_ids_json = htmlspecialchars(json_encode($row['item_ids'] ?? []));
+                        $order_id  = $row['orders_id'];
+                        $status    = $row['status'];
+                        $confirmed = ($status === 'shipped' || $status === 'accepted' || $status === 'pending');
+                        $disabled  = $confirmed ? 'disabled' : '';
+                        $label     = $confirmed ? ucfirst($status) : 'Ship';
                       ?>
                         <tr class="order-header-row" onclick="toggleOrderItems(<?= $order_id ?>)">
                           <td><?= htmlspecialchars($order_id)              ?></td>
@@ -572,11 +576,11 @@ exit;
                   <tbody>
                     <?php if ($mpl_array['success']): ?>
                       <?php foreach ($mpl_array['data'] as $row):
-                        $mpl_id   = $row['mpl_id'];
-                        $status   = $row['status'];
-                        $received = $status === 'received';
-                        $disabled = $received ? 'disabled' : '';
-                        $label    = $received ? 'Received' : 'Receive';
+                          $mpl_id   = $row['mpl_id'];
+                          $status   = $row['status'];
+                          $received = ($status === 'received' || $status === 'accepted');  // check both
+                          $disabled = $received ? 'disabled' : '';
+                          $label    = $received ? 'Accepted' : 'Receive';
                       ?>
 
                         <tr class="mpl-header-row" onclick="toggleMplItems(<?= $mpl_id ?>)">
@@ -1171,35 +1175,38 @@ exit;
         btn.textContent = 'Processing...';
 
         try {
-          const res  = await fetch('api/orders.php', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({
-              action:       'ship',
-              order_id:     parseInt(orderId),
-              item_ids:     itemIds,
-              reference:    reference,
-              ship_date:    shipDate,
-              trailer_name: trailer
-            })
-          });
-          const data = await res.json();
+            const res  = await fetch('api/orders.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    action:       'ship',
+                    order_id:     parseInt(orderId),
+                    item_ids:     itemIds,
+                    reference:    reference,
+                    ship_date:    shipDate,
+                    trailer_name: trailer
+                })
+            });
+            const data = await res.json();
 
-          if (data.success) {
-            document.querySelector(`.status-cell-${orderId}`).textContent = 'Shipped';
-            btn.textContent = 'Shipped';
-            showToast(data.message || 'Order shipped successfully.', 'success');
-          } else {
+            if (data.success) {
+                showToast(data.message || 'Order shipped successfully.', 'success');
+                setTimeout(() => location.reload(), 1500);  // reload so status comes from API
+            } else {
+              btn.disabled    = false;
+                btn.textContent = 'Ship';
+                // Split error lines into separate toasts
+                const lines = (data.error || 'Something went wrong.').split('\n');
+                lines.forEach((line, i) => {
+                    if (line.trim()) setTimeout(() => showToast(line, 'error'), i * 2000);
+                });
+              }
+        } catch (err) {
             btn.disabled    = false;
             btn.textContent = 'Ship';
-            showToast(data.error || 'Something went wrong.', 'error');
-          }
-        } catch (err) {
-          btn.disabled    = false;
-          btn.textContent = 'Ship';
-          showToast('Network error — please try again.', 'error');
+            showToast('Network error — please try again.', 'error');
         }
-      }
+    }
 
       // Update an order
       async function updateOrder(orderId, referenceNumb, shipDate, trailerName) {
@@ -1226,7 +1233,7 @@ exit;
       }
 
       // Receive an MPL
-      async function receiveMpl(btn) {
+    async function receiveMpl(btn) {
         const mplId = btn.dataset.mplId;
         if (!confirm(`Receive MPL #${mplId}? This will add to inventory.`)) return;
 
@@ -1234,28 +1241,27 @@ exit;
         btn.textContent = 'Processing...';
 
         try {
-          const res  = await fetch('api/mpl.php', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ action: 'receive', mpl_id: parseInt(mplId) })
-          });
-          const data = await res.json();
+            const res  = await fetch('api/mpl.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ action: 'receive', mpl_id: parseInt(mplId) })
+            });
+            const data = await res.json();
 
-          if (data.success) {
-            document.querySelector(`.mpl-status-cell-${mplId}`).textContent = 'Received';
-            btn.textContent = 'Received';
-            showToast(data.message, 'success');
-          } else {
+            if (data.success) {
+                showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1500);  // reload so status comes from API
+            } else {
+                btn.disabled    = false;
+                btn.textContent = 'Receive';
+                showToast(data.error || 'Something went wrong.', 'error');
+            }
+        } catch (err) {
             btn.disabled    = false;
             btn.textContent = 'Receive';
-            showToast(data.error, 'error');
-          }
-        } catch (err) {
-          btn.disabled    = false;
-          btn.textContent = 'Receive';
-          showToast('Network error — please try again.', 'error');
-        }
-      }
+            showToast('Network error — please try again.', 'error');
+    }
+    }
 
       // Toast notification helper
       function showToast(message, type) {
