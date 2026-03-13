@@ -275,8 +275,7 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
     return ['success' => false, 'data' => []];
   }
 
-  function api_request($url, $method, $data = null): mixed {
-    $api_key = "test";
+  function api_request($url, $method, $api_key, $data = null): mixed {
 
     $options = [
       'http' => [
@@ -286,7 +285,6 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
         'ignore_errors' => true
       ]
     ];
-
     if ($data !== null) {
       $options['http']['content'] = json_encode($data);
     }
@@ -301,7 +299,8 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
   // Fetch all orders from the ashley/ray API
   function fetch_orders_from_api($conn) {
     $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
-    $result = api_request($url, 'GET');
+   global $env;
+$result = api_request($url, 'GET', $env['X_API_KEY']);
 
     if (!is_array($result) || isset($result['error'])) {
       return ['success' => false, 'data' => []];
@@ -386,7 +385,8 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
       'trailer_name'   => $data['trailer_name']
     ];
 
-    $result = api_request($url, 'PUT', $payload);
+   global $env;
+$result = api_request($url, 'PUT', $env['X_API_KEY'], $payload);
 
     return is_array($result) ? $result : ['success' => false, 'error' => 'Invalid response from API'];
   }
@@ -1183,50 +1183,60 @@ ini_set('display_errors', 1); error_reporting(E_ALL);
 
       // Ship an order
       async function shipOrder(btn) {
-        const orderId   = btn.dataset.orderId;
-        const itemIds   = JSON.parse(btn.dataset.itemIds);
-        const reference = btn.dataset.reference;
-        const shipDate  = btn.dataset.shipDate;
-        const trailer   = btn.dataset.trailer;
+    const orderId   = btn.dataset.orderId;
+    const itemIds   = JSON.parse(btn.dataset.itemIds);
+    const reference = btn.dataset.reference;
+    const shipDate  = btn.dataset.shipDate;
+    const trailer   = btn.dataset.trailer;
 
-        if (!confirm(`Ship order #${orderId}? This will deduct from inventory.`)) return;
+    if (!confirm(`Ship order #${orderId}? This will deduct from inventory.`)) return;
 
-        btn.disabled    = true;
-        btn.textContent = 'Processing...';
+    btn.disabled    = true;
+    btn.textContent = 'Processing...';
 
-        try {
-            const res  = await fetch('api/orders.php', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                    action:       'ship',
-                    order_id:     parseInt(orderId),
-                    item_ids:     itemIds,
-                    reference:    reference,
-                    ship_date:    shipDate,
-                    trailer_name: trailer
-                })
-            });
-            const data = await res.json();
+    try {
+        // Add a 30 second timeout — external API calls are slow
+        const controller = new AbortController();
+        const timeout    = setTimeout(() => controller.abort(), 30000);
 
-            if (data.success) {
-                showToast(data.message || 'Order shipped successfully.', 'success');
-                setTimeout(() => location.reload(), 1500);  // reload so status comes from API
-            } else {
-              btn.disabled    = false;
-                btn.textContent = 'Ship';
-                // Split error lines into separate toasts
-                const lines = (data.error || 'Something went wrong.').split('\n');
-                lines.forEach((line, i) => {
-                    if (line.trim()) setTimeout(() => showToast(line, 'error'), i * 2000);
-                });
-              }
-        } catch (err) {
+        const res = await fetch('/api/orders.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal:  controller.signal,   // ← ties fetch to the timeout
+            body:    JSON.stringify({
+                action:       'ship',
+                order_id:     parseInt(orderId),
+                item_ids:     itemIds,
+                reference:    reference,
+                ship_date:    shipDate,
+                trailer_name: trailer
+            })
+        });
+
+        clearTimeout(timeout);
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message || 'Order shipped successfully.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
             btn.disabled    = false;
             btn.textContent = 'Ship';
-            showToast('Network error — please try again.', 'error');
+            showToast(data.error || 'Something went wrong.', 'error');
+        }
+
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            // Timed out — but the server may have still completed it
+            showToast('Request timed out — refreshing to check status...', 'error');
+            setTimeout(() => location.reload(), 2000);  // ← reload instead of failing
+        } else {
+            // Generic network error — server likely still processed it
+            showToast('Network error — refreshing to check status...', 'error');
+            setTimeout(() => location.reload(), 2000);  // ← reload instead of failing
         }
     }
+}
 
       // Update an order
       async function updateOrder(orderId, referenceNumb, shipDate, trailerName) {

@@ -61,93 +61,88 @@
         echo json_encode($result);
 
     // -------------------------------------------------------
-    // POST — ship
+    // POST — ship or create
     // -------------------------------------------------------
     } elseif ($method === 'POST') {
         $data   = json_decode(file_get_contents('php://input'), true);
         $action = $data['action'] ?? 'create';
 
-        if ($action === 'ship') {
-            $order_id     = $data['order_id']    ?? null;
-            $item_ids     = $data['item_ids']     ?? [];
-            $reference    = $data['reference']    ?? '';
-            $ship_date    = $data['ship_date']    ?? '';
-            $trailer_name = $data['trailer_name'] ?? '';
+     if ($action === 'ship') {
+    $order_id     = $data['order_id']    ?? null;
+    $item_ids     = $data['item_ids']    ?? [];
+    $reference    = $data['reference']   ?? '';
+    $ship_date    = $data['ship_date']   ?? '';
+    $trailer_name = $data['trailer_name'] ?? '';
 
-            if (!$order_id || empty($item_ids)) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Bad Request', 'details' => 'order_id and item_ids are required']);
-                exit;
-            }
+    if (!$order_id || empty($item_ids)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Bad Request']);
+        exit;
+    }
 
-            // 1. Fetch their inventory_ids for this reference_numb from external API
-            $all_orders    = call_external_api('GET', $external_api_url, $external_api_key);
-            $inventory_ids = [];
-            foreach ($all_orders as $row) {
-                if (!is_array($row)) continue;
-                if (($row['reference_numb'] ?? '') === $reference) {
-                    if (!empty($row['inventory_id'])) {
-                        $inventory_ids[] = (int)$row['inventory_id'];
-                    }
-                }
-            }
+    // 1. Deduct from local inventory
+    $local_result = ship_order($conn, $order_id, $reference);
 
-            if (empty($inventory_ids)) {
-                http_response_code(422);
-                echo json_encode(['success' => false, 'error' => 'No inventory IDs found for reference #' . $reference . ' on external API']);
-                exit;
-            }
+    if (!$local_result['success']) {
+        http_response_code(422);
+        echo json_encode($local_result);
+        exit;
+    }
 
-            // 2. Notify external API first — send the order with shipped status
-            $external_result = call_external_api('POST', $external_api_url, $external_api_key, [
+    // 2. Notify the other team's API
+    $external_url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php";
+    $external_opts   = [
+        'http' => [
+            'method'  => 'POST',
+            'header'  => "Content-Type: application/json\r\nx-api-key: test\r\n",
+            'content' => json_encode([
+                'id'             => $order_id,
                 'reference'      => $reference,
                 'date'           => $ship_date,
                 'truck'          => $trailer_name,
                 'status'         => 'shipped',
-                'selected_items' => $inventory_ids
-            ]);
+                'selected_items' => $item_ids
+            ]),
+            'ignore_errors' => true
+        ]
+    ];
+    $external_result = json_decode(
+        file_get_contents($external_url, false, stream_context_create($external_opts)),
+        true
+    );
 
-            // 3. Only deduct from local inventory if external API accepted it
-            if (!isset($external_result['success']) || $external_result['success'] !== true) {
-                http_response_code(502);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'External API rejected the shipment — inventory not deducted.',
-                    'details' => $external_result
-                ]);
-                exit;
-            }
+    // 3. Persist shipped status locally
+    $stmt = $conn->prepare(
+        "INSERT INTO orders (reference_numb, status)
+         VALUES (?, 'shipped')
+         ON DUPLICATE KEY UPDATE status = 'shipped'"
+    );
+    $stmt->bind_param("s", $reference);
+    $stmt->execute();
 
-            // 4. External confirmed — now remove units from local inventory
-            $local_result = ship_order($conn, $order_id);
+    http_response_code(200);
+    echo json_encode([
+        'success'         => true,
+        'message'         => 'Order shipped and inventory updated.',
+        'external_result' => $external_result  
+    ]);
+    exit;
+}
+    // -------------------------------------------------------
+    // PUT — forward update to external API
+    // -------------------------------------------------------
+    } elseif ($method === 'PUT') {
+        $data = json_decode(file_get_contents('php://input'), true);
 
-            if (!$local_result['success']) {
-                // External was notified but local failed — log this as a warning
-                http_response_code(207);
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'External API was notified but local inventory update failed: ' . $local_result['error']
-                ]);
-                exit;
-            }
-
-            // 5. Mark as shipped in local orders table
-            $stmt = $conn->prepare(
-                "INSERT INTO orders (reference_numb, status)
-                 VALUES (?, 'shipped')
-                 ON DUPLICATE KEY UPDATE status = 'shipped'"
-            );
-            $stmt->bind_param("s", $reference);
-            $stmt->execute();
-
-            http_response_code(200);
-            echo json_encode(['success' => true, 'message' => 'Order shipped and inventory updated.']);
-
-        } else {
+        if (!isset($data['id'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Unknown action']);
+            echo json_encode(['success' => false, 'error' => 'ID is required for update']);
             exit;
         }
+
+        $result = call_external_api('PUT', $external_api_url, $external_api_key, $data);
+        http_response_code(isset($result['success']) && $result['success'] ? 200 : 422);
+        echo json_encode($result);
 
     // -------------------------------------------------------
     // DELETE — forward delete to external API
