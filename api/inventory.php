@@ -61,7 +61,7 @@ if ($method === 'GET') {
     $footage_quantity = (float)$data['footage_quantity'];
 
     $stmt = $conn->prepare(
-        "INSERT INTO inventory (order_id, unit_numb ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
+        "INSERT INTO inventory (order_id, unit_numb, ficha, sku, quantity, description1, description2, quantity_unit, footage_quantity)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->bind_param("issississd", $order_id, $unit_numb,
@@ -101,7 +101,7 @@ if ($method === 'GET') {
             description2 = ?, quantity_unit = ?, footage_quantity = ?
          WHERE id = ?"
     );
-    $stmt->bind_param("isssisssdi", $order_id,
+    $stmt->bind_param("isssisssdi", $order_id, $unit_numb,
         $ficha, $sku, $quantity, $description1,
         $description2, $quantity_unit, $footage_quantity, $id);
 

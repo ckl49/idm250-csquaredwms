@@ -94,7 +94,7 @@
     $external_opts   = [
         'http' => [
             'method'  => 'POST',
-            'header'  => "Content-Type: application/json\r\nx-api-key: test\r\n",
+            'header' => "Content-Type: application/json\r\nx-api-key: " . $external_api_key . "\r\n",
             'content' => json_encode([
                 'id'             => $order_id,
                 'reference'      => $reference,

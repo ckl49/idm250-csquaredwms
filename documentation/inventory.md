@@ -6,7 +6,7 @@
 `https://digmstudents.westphal.drexel.edu/~ckl49/idm250-csquaredwms/api/inventory.php`
 
 **Supported Methods**  
-GET, POST
+GET, POST, PUT, DELETE
 
 **Content-Type**  
 `application/json`
@@ -17,11 +17,21 @@ GET, POST
 **Authentication**  
 Required.
 
+Authentication should be provided by API key in request headers
+
+Header format:
+
+```
+x-api-key: YOUR_API_KEY
+```
+
 If authentication is not present, the API returns:
 
 HTTP 401
 ```json
-{ "error": "Unauthorized" }
+{
+  "error": "Unauthorized"
+}
 ```
 
 **Request Type**  
@@ -31,43 +41,63 @@ All interactions are performed using HTTP requests that return JSON responses.
 
 ## Data Model: inventory Table
 
-Because `GET` uses `SELECT * FROM inventory`, additional columns may exist. Based strictly on fields referenced in this file, the following columns are used:
+The API explicitly selects the following columns from the `inventory` table:
 
-| Field Name      | Type          | Required (POST) | Notes |
-|----------------|---------------|-----------------|------|
-| id             | integer       | Yes             | Inserted as provided (not auto-generated in this snippet) |
-| quant_instock  | integer       | Not validated*  | Used in INSERT and should be included |
-| ficha          | integer       | Yes             |  |
-| sku            | string        | Yes             |  |
-| description    | string        | Yes             |  |
-| uom_primary    | string        | Yes             | Unit of measure |
-| piece_count    | integer       | Yes             |  |
-| length_inches  | decimal/float | Yes             |  |
-| width_inches   | decimal/float | Yes             |  |
-| height_inches  | decimal/float | Yes             |  |
-| weight_lbs     | decimal/float | Yes             |  |
-| assembly       | string        | Yes             |  |
-| rate           | decimal/float | Yes             |  |
-| time_stamp     | datetime      | Auto-set        | Set by `NOW()` during insert |
-
-\*Although `quant_instock` is not checked in the required-field validation, it is used in the prepared statement and should always be included to avoid unexpected behavior.
+| Field Name        | Type           | Required (POST) | Notes |
+|-------------------|---------------|-----------------|------|
+| inventory_id      | integer       | No              | Returned as alias of `id` in GET |
+| order_id          | integer       | Yes             | Associated order |
+| unit_numb         | string        | Yes             | Unit number |
+| ficha             | string        | Yes             | Internal identifier |
+| sku               | string        | Yes             | Product SKU |
+| quantity          | integer       | Yes             | Quantity of items |
+| description1      | string        | Yes             | Primary description |
+| description2      | string        | No              | Secondary description |
+| quantity_unit     | string        | Yes             | Unit of measure |
+| footage_quantity  | decimal/float | Yes             | Square footage quantity |
 
 ---
 
 ## Response Format
 
 ### Success Responses
+
 ```json
 { "success": true, "data": [...] }
-{ "success": true, "data": "New item created successfully" }
+```
+
+```json
+{ "success": true, "message": "Item created", "id": 10 }
+```
+
+```json
+{ "success": true, "message": "Item updated" }
+```
+
+```json
+{ "success": true, "message": "Item deleted" }
 ```
 
 ### Error Responses
+
 ```json
-{ "success": false, "error": "Invalid request method" }
-{ "error": "Bad Request", "details": "Missing required field(s)" }
-{ "success": false, "error": "Database error: <error message>" }
 { "error": "Unauthorized" }
+```
+
+```json
+{ "error": "Bad Request", "details": "Missing required field: field_name" }
+```
+
+```json
+{ "success": false, "error": "No inventory records found" }
+```
+
+```json
+{ "success": false, "error": "<database error message>" }
+```
+
+```json
+{ "error": "Method not allowed" }
 ```
 
 ---
@@ -79,101 +109,209 @@ Returns all inventory records.
 ### Request
 No request body required.
 
-### Success Response
+### Example Response
+
 ```json
 {
   "success": true,
   "data": [
     {
-      "id": 1,
-      "quant_instock": 50,
-      "ficha": 101,
+      "inventory_id": 1,
+      "order_id": 120,
+      "unit_numb": "A12",
+      "ficha": "F100",
       "sku": "SKU-001",
-      "description": "Red Chair",
-      "uom_primary": "EA",
-      "piece_count": 1,
-      "length_inches": 24.5,
-      "width_inches": 18.0,
-      "height_inches": 36.0,
-      "weight_lbs": 15.5,
-      "assembly": "No",
-      "rate": 99.99,
-      "time_stamp": "2026-02-25 10:00:00"
+      "quantity": 50,
+      "description1": "Wood Panel",
+      "description2": "Walnut Finish",
+      "quantity_unit": "EA",
+      "footage_quantity": 35.5
     }
   ]
 }
 ```
 
 ### No Records Found
+
 ```json
 {
   "success": false,
-  "error": "Invalid request method"
+  "error": "No inventory records found"
 }
 ```
-
-Note: This error message is misleading. It is returned when zero records exist, not when the HTTP method is invalid.
 
 ---
 
 # POST Method
 
-Creates a new inventory record.
+Creates a new inventory item.
 
 ### Required JSON Body
 
 ```json
 {
-  "id": 1,
-  "quant_instock": 50,
-  "ficha": 101,
+  "order_id": 120,
+  "unit_numb": "A12",
+  "ficha": "F100",
   "sku": "SKU-001",
-  "description": "Red Chair",
-  "uom_primary": "EA",
-  "piece_count": 1,
-  "length_inches": 24.5,
-  "width_inches": 18.0,
-  "height_inches": 36.0,
-  "weight_lbs": 15.5,
-  "assembly": "No",
-  "rate": 99.99
+  "quantity": 50,
+  "description1": "Wood Panel",
+  "description2": "Walnut Finish",
+  "quantity_unit": "EA",
+  "footage_quantity": 35.5
 }
 ```
 
-### Missing Required Fields
+### Required Fields
+
+- order_id
+- ficha
+- unit_numb
+- sku
+- quantity
+- description1
+- quantity_unit
+- footage_quantity
+
+### Missing Required Field
 
 HTTP 400
+
 ```json
 {
   "error": "Bad Request",
-  "details": "Missing required field(s)"
+  "details": "Missing required field: sku"
 }
 ```
 
 ### Success Response
 
 HTTP 201
+
 ```json
 {
   "success": true,
-  "data": "New item created successfully"
+  "message": "Item created",
+  "id": 10
 }
 ```
 
 ### Database Error
 
-May return HTTP 200 with:
 ```json
 {
   "success": false,
-  "error": "Database error: <error message>"
+  "error": "Database error message"
 }
 ```
 
-Note: The code does not explicitly set a non-200 status code for database failures.
+---
+
+# PUT Method
+
+Updates an existing inventory item.
+
+### Required JSON Body
+
+```json
+{
+  "id": 10,
+  "order_id": 120,
+  "unit_numb": "A12",
+  "ficha": "F100",
+  "sku": "SKU-001",
+  "quantity": 75,
+  "description1": "Wood Panel",
+  "description2": "Updated description",
+  "quantity_unit": "EA",
+  "footage_quantity": 40.0
+}
+```
+
+### Required Field
+
+- id
+
+### Missing ID
+
+HTTP 400
+
+```json
+{
+  "error": "Missing required field: id"
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Item updated"
+}
+```
+
+### Database Error
+
+```json
+{
+  "success": false,
+  "error": "Database error message"
+}
+```
+
+---
+
+# DELETE Method
+
+Deletes an inventory item.
+
+### Required JSON Body
+
+```json
+{
+  "id": 10
+}
+```
+
+### Missing ID
+
+HTTP 400
+
+```json
+{
+  "error": "Missing required field: id"
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Item deleted"
+}
+```
+
+### Database Error
+
+```json
+{
+  "success": false,
+  "error": "Database error message"
+}
+```
 
 ---
 
 ## Unsupported Methods
 
-Only GET and POST are implemented in the provided code. Other HTTP methods are not handled explicitly and may result in default server behavior.
+Any HTTP method other than GET, POST, PUT, or DELETE will return:
+
+HTTP 405
+
+```json
+{
+  "error": "Method not allowed"
+}
+```

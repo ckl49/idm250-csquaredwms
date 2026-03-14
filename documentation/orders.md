@@ -17,11 +17,21 @@ GET, POST, PUT, DELETE
 **Authentication**  
 Required.
 
+Authentication can be provided by API key in request headers
+
+Accepted header formats:
+
+```http
+x-api-key: YOUR_API_KEY
+```
+
 If authentication is not present, the API returns:
 
 HTTP 401
 ```json
-{ "error": "Unauthorized" }
+{
+  "error": "Unauthorized"
+}
 ```
 
 **Request Type**  
@@ -31,60 +41,94 @@ All interactions are performed using HTTP requests that return JSON responses.
 
 ## Data Model: orders Table
 
-Because `GET` uses `SELECT * FROM orders`, additional columns may exist in the table. Based strictly on fields referenced in this file, the following columns are used:
+Based strictly on fields referenced in this file, the following local `orders` table columns are used:
 
-| Field Name      | Type    | Used In            | Required | Notes |
-|---------------|---------|--------------------|----------|-------|
-| id            | integer | PUT, DELETE        | Yes      | Primary identifier for update and delete |
-| reference_numb| integer | POST (create), PUT | Yes      | Order reference number |
-| ship_date     | string  | POST (create), PUT | Yes      | Stored as string. Format not validated in code |
-| trailer_name  | string  | POST (create), PUT | Yes      | Trailer identifier |
+| Field Name     | Type    | Used In     | Required | Notes |
+|---------------|---------|-------------|----------|-------|
+| reference_numb| string  | POST ship   | Yes      | Stored locally when an order is marked shipped |
+| status        | string  | POST ship   | Auto-set | Set to `shipped` during ship action |
+
+Note: This API primarily acts as a proxy for an external orders API. Most order data returned by GET, PUT, and DELETE comes from the external API rather than the local database.
 
 ---
 
-## Data Model: orders_items Table
+## External API Dependency
 
-When creating an order, each item is inserted into `orders_items` using the newly created order `id`.
+This endpoint communicates with an external API at:
 
-| Field Name        | Type          | Required (POST create) | Notes |
-|------------------|--------------|------------------------|-------|
-| order_id         | integer      | Auto-set               | Set to the inserted order ID |
-| ficha            | integer      | Expected               | Not explicitly validated |
-| sku              | string       | Expected               | Not explicitly validated |
-| description      | string       | Expected               | Not explicitly validated |
-| quantity         | integer      | Expected               | Not explicitly validated |
-| quantity_unit    | string       | Expected               | Not explicitly validated |
-| footage_quantity | integer      | Expected               | Not explicitly validated |
-| uom_primary      | string       | Expected               | Not explicitly validated |
-| piece_count      | integer      | Expected               | Not explicitly validated |
-| length_inches    | decimal      | Expected               | Not explicitly validated |
-| width_inches     | decimal      | Expected               | Not explicitly validated |
-| height_inches    | decimal      | Expected               | Not explicitly validated |
-| weight_lbs       | decimal      | Expected               | Not explicitly validated |
-| assembly         | string       | Expected               | Not explicitly validated |
-| rate             | decimal      | Expected               | Not explicitly validated |
+`https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api_orders.php`
 
-Note: The API validates only that `items` exists at the top level. It does not validate each individual item field before insertion.
+The following methods forward requests to the external API:
+
+- GET
+- PUT
+- DELETE
+
+The POST `ship` action also sends shipment data to the external API after local inventory is updated.
+
+If the external API cannot be reached, the API may return:
+
+```json
+{
+  "success": false,
+  "error": "Could not reach external API"
+}
+```
+
+If the external API returns invalid JSON, the API may return:
+
+```json
+{
+  "success": false,
+  "error": "Invalid response from external API"
+}
+```
 
 ---
 
 ## Response Format
 
 ### Success Responses
+
 ```json
 { "success": true, "data": [...] }
-{ "success": true, "data": "New order created successfully" }
-{ "success": true, "message": "Order updated successfully" }
-{ "success": true, "message": "Order 42 deleted successfully" }
+```
+
+```json
+{ "success": true, "message": "Order shipped and inventory updated.", "external_result": {...} }
+```
+
+```json
+{ "success": true }
 ```
 
 ### Error Responses
+
 ```json
-{ "success": false, "error": "No orders found" }
-{ "error": "Bad Request", "details": "Missing required field(s)" }
-{ "error": "Bad Request", "details": "order_id is required" }
-{ "success": false, "error": "Database error: <error message>" }
 { "error": "Unauthorized" }
+```
+
+```json
+{ "error": "Bad Request" }
+```
+
+```json
+{ "success": false, "error": "ID is required for update" }
+```
+
+```json
+{ "success": false, "error": "ID is required for deletion" }
+```
+
+```json
+{ "success": false, "error": "Could not reach external API" }
+```
+
+```json
+{ "success": false, "error": "Invalid response from external API" }
+```
+
+```json
 { "error": "Method Not Allowed" }
 ```
 
@@ -92,173 +136,160 @@ Note: The API validates only that `items` exists at the top level. It does not v
 
 # GET Method
 
-Returns all rows from the `orders` table.
+Retrieves orders from the external API.
 
 ### Request
 No request body required.
 
 ### Success Response
+
+HTTP 200
+
 ```json
 {
   "success": true,
   "data": [
     {
       "id": 12,
-      "reference_numb": 45,
-      "ship_date": "2026-05-01",
-      "trailer_name": "TRK-003"
+      "reference": "REF-1001",
+      "date": "2026-03-10",
+      "truck": "Trailer A",
+      "status": "pending"
     }
   ]
 }
 ```
 
-### No Orders Found
+### External API Failure
+
+HTTP 502
+
 ```json
 {
   "success": false,
-  "error": "No orders found"
+  "error": "Could not reach external API"
 }
 ```
 
-Important: This endpoint returns data from the `orders` table only. It does not return associated `orders_items`.
+or
+
+```json
+{
+  "success": false,
+  "error": "Invalid response from external API"
+}
+```
+
+Note: The exact order fields returned by GET depend on the external API response.
 
 ---
 
 # POST Method
 
-The POST method supports two actions:
+The POST method currently supports a ship action.
 
-- Default action: Create a new order
-- `action: "ship"`: Ship an existing order
+### Supported Action
 
----
+- `action: "ship"`
 
-## POST Action: Create Order
-
-Creates a new order and inserts related items into `orders_items`.
-
-### Required JSON Body
-
-The following top-level fields are required:
-- `reference_numb`
-- `ship_date`
-- `trailer_name`
-- `items`
-
-```json
-{
-  "reference_numb": 45,
-  "ship_date": "2026-05-01",
-  "trailer_name": "TRK-003",
-  "items": [
-    {
-      "ficha": 101,
-      "sku": "SKU-001",
-      "description": "Red Chair",
-      "quantity": 5,
-      "quantity_unit": "EA",
-      "footage_quantity": 2,
-      "uom_primary": "EA",
-      "piece_count": 1,
-      "length_inches": 24.5,
-      "width_inches": 18.0,
-      "height_inches": 36.0,
-      "weight_lbs": 15.5,
-      "assembly": "No",
-      "rate": 99.99
-    }
-  ]
-}
-```
-
-### Missing Required Fields
-
-HTTP 400
-```json
-{
-  "error": "Bad Request",
-  "details": "Missing required field(s)"
-}
-```
-
-### Success Response
-
-HTTP 201
-```json
-{
-  "success": true,
-  "data": "New order created successfully"
-}
-```
-
-### Database Error
-
-May return HTTP 200:
-```json
-{
-  "success": false,
-  "error": "Database error: <error message>"
-}
-```
+If no action is provided, the code defaults to `create`, but no create logic is implemented in the provided file.
 
 ---
 
 ## POST Action: Ship Order
 
-Ships an existing order using `ship_order()`.
+Ships an order, updates local inventory, notifies the external API, and stores shipped status locally.
 
 ### Required JSON Body
+
 ```json
 {
   "action": "ship",
-  "order_id": 42
+  "order_id": 42,
+  "item_ids": [1, 2, 3],
+  "reference": "REF-1001",
+  "ship_date": "2026-03-13",
+  "trailer_name": "Trailer A"
 }
 ```
 
-### Missing order_id
+### Required Fields
+
+- `order_id`
+- `item_ids`
+
+### Optional Fields
+
+- `reference`
+- `ship_date`
+- `trailer_name`
+
+### Missing Required Fields
 
 HTTP 400
+
 ```json
 {
-  "error": "Bad Request",
-  "details": "order_id is required"
+  "error": "Bad Request"
 }
 ```
 
-### Success / Failure Status Codes
+### Success Response
 
-- HTTP 200 if shipping succeeds
-- HTTP 422 if shipping fails
+HTTP 200
 
-### Example Success Response
 ```json
 {
   "success": true,
-  "message": "Order shipped successfully"
+  "message": "Order shipped and inventory updated.",
+  "external_result": {
+    "success": true
+  }
 }
 ```
 
-### Implementation Note
+### Inventory Update Failure
 
-If shipping succeeds, the API attempts an outbound HTTP POST request to:
+If local inventory shipping fails, the API returns:
 
-`https://theirsite.com/api/orders.php`
+HTTP 422
 
-Payload sent:
 ```json
 {
-  "order_id": 42,
-  "status": "shipped"
+  "success": false,
+  "error": "Inventory update failed"
 }
 ```
 
-The outbound response is not returned to the client.
+Note: The exact failure response depends on what `ship_order($conn, $order_id, $reference)` returns.
+
+### External Shipment Payload
+
+When the ship action succeeds locally, the API sends this payload to the external API:
+
+```json
+{
+  "id": 42,
+  "reference": "REF-1001",
+  "date": "2026-03-13",
+  "truck": "Trailer A",
+  "status": "shipped",
+  "selected_items": [1, 2, 3]
+}
+```
+
+### Local Database Behavior
+
+After a successful ship action, the API inserts or updates a local `orders` record:
+
+- `reference_numb` = provided `reference`
+- `status` = `shipped`
 
 ---
 
 # PUT Method
 
-Updates an existing order in the `orders` table.
+Forwards an update request to the external API.
 
 ### Required JSON Body
 
@@ -267,13 +298,17 @@ Updates an existing order in the `orders` table.
 ```json
 {
   "id": 42,
-  "reference_numb": 45,
-  "ship_date": "2026-05-01",
-  "trailer_name": "TRK-003"
+  "reference": "REF-1001",
+  "date": "2026-03-13",
+  "truck": "Trailer A",
+  "status": "processing"
 }
 ```
 
 ### Missing id
+
+HTTP 400
+
 ```json
 {
   "success": false,
@@ -282,30 +317,36 @@ Updates an existing order in the `orders` table.
 ```
 
 ### Success Response
+
+HTTP 200
+
 ```json
 {
-  "success": true,
-  "message": "Order updated successfully"
+  "success": true
 }
 ```
 
 ### Failure Response
+
+HTTP 422
+
 ```json
 {
   "success": false,
-  "error": "<error message>"
+  "error": "Update failed"
 }
 ```
 
-Note: PUT updates only the `orders` table. It does not modify `orders_items`.
+Note: The exact success or failure structure depends on the external API response.
 
 ---
 
 # DELETE Method
 
-Deletes an order from the `orders` table using `id`.
+Forwards a delete request to the external API.
 
 ### Required JSON Body
+
 ```json
 {
   "id": 42
@@ -313,6 +354,9 @@ Deletes an order from the `orders` table using `id`.
 ```
 
 ### Missing id
+
+HTTP 400
+
 ```json
 {
   "success": false,
@@ -321,30 +365,49 @@ Deletes an order from the `orders` table using `id`.
 ```
 
 ### Success Response
+
+HTTP 200
+
 ```json
 {
-  "success": true,
-  "message": "Order 42 deleted successfully"
+  "success": true
 }
 ```
 
-### Not Found
+### Failure Response
+
+HTTP 422
+
 ```json
 {
   "success": false,
-  "error": "No order found with ID 42"
+  "error": "Delete failed"
 }
 ```
 
+Note: The exact success or failure structure depends on the external API response.
+
 ---
 
-# Unsupported Methods
+## Unsupported Methods
 
-Any HTTP method other than GET, POST, PUT, DELETE returns:
+Any HTTP method other than GET, POST, PUT, or DELETE returns:
 
 HTTP 405
+
 ```json
 {
   "error": "Method Not Allowed"
 }
 ```
+
+---
+
+## Important Implementation Notes
+
+- GET, PUT, and DELETE do not directly query the local database. They proxy requests to an external API.
+- POST only implements shipping logic in the provided file.
+- The POST ship action performs three operations in sequence:
+  1. Deducts shipped items from local inventory
+  2. Sends shipment data to the external API
+  3. Stores shipped status locally in the `orders` table

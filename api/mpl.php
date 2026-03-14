@@ -31,7 +31,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 // ── GET: fetch live from external API ────────────────────────────────────────
 if ($method === 'GET') {
     $url    = "https://digmstudents.westphal.drexel.edu/~an943/Shay_Manufacturing/APIs/api-mpl.php";
-    $opts   = ['http' => ['method' => 'GET', 'header' => "x-api-key: test\r\n", 'ignore_errors' => true]];
+    $opts   = ['http' => ['method' => 'GET', 
+               'header' => "x-api-key: " . ($env['X_API_KEY']) . "\r\n",
+               'ignore_errors' => true]];
     $result = json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
 
     if (!empty($result) && is_array($result)) {
@@ -55,9 +57,6 @@ if ($method === 'GET') {
         }
 
         error_log("Calling receive_mpl with mpl_id: " . $mpl_id);
-        $result = receive_mpl($conn, $mpl_id);
-        error_log("receive_mpl result: " . json_encode($result));
-
         $result = receive_mpl($conn, $mpl_id);
 
         // Notify external API only if receive succeeded
