@@ -771,7 +771,11 @@ $result = api_request($url, 'PUT', $env['X_API_KEY'], $payload);
               <label>FICHA *</label>
               <input type="text" name="ficha" placeholder="e.g. 452" required>
             </div>
-            <div class="input-div">
+            <div class="input-div">         <!-- ADD THIS BLOCK -->
+            <label>Unit #</label>
+            <input type="text" name="unit_numb" placeholder="e.g. 78115005">
+          </div>
+            <div class="input-div full-width">
               <label>SKU *</label>
               <input type="text" name="sku" placeholder="e.g. 1720823-0567" required>
             </div>
@@ -817,12 +821,17 @@ $result = api_request($url, 'PUT', $env['X_API_KEY'], $payload);
         <form method="POST" action="dashboard.php" class="edit-form">
           <input type="hidden" name="action"       value="edit_inventory">
           <input type="hidden" name="inventory_id" id="edit_inv_id">
+          <input type="hidden" name="order_id" id="edit_inv_order_id">
           <div class="modal-grid">
+            <div class="input-div">
+              <label>Unit #</label>
+              <input type="text" name="unit_numb" id="edit_inv_unit_numb">
+            </div>
             <div class="input-div">
               <label>FICHA *</label>
               <input type="text" name="ficha" id="edit_inv_ficha" required>
             </div>
-            <div class="input-div">
+            <div class="input-div full-width">
               <label>SKU *</label>
               <input type="text" name="sku" id="edit_inv_sku" required>
             </div>
@@ -1125,15 +1134,17 @@ $result = api_request($url, 'PUT', $env['X_API_KEY'], $payload);
       }
 
       // EDIT MODAL (inventory)
-      function openEditInventory(id, ficha, sku, quantity, desc1, desc2, unit, footage) {
-        document.getElementById('edit_inv_id').value       = id;
-        document.getElementById('edit_inv_ficha').value    = ficha;
-        document.getElementById('edit_inv_sku').value      = sku;
-        document.getElementById('edit_inv_quantity').value = quantity;
-        document.getElementById('edit_inv_desc1').value    = desc1;
-        document.getElementById('edit_inv_desc2').value    = desc2;
-        document.getElementById('edit_inv_unit').value     = unit;
-        document.getElementById('edit_inv_footage').value  = footage;
+      function openEditInventory(id, orderId, unitNumb, ficha, sku, quantity, desc1, desc2, unit, footage) {
+        document.getElementById('edit_inv_id').value        = id;
+        document.getElementById('edit_inv_order_id').value  = orderId;
+        document.getElementById('edit_inv_unit_numb').value = unitNumb;
+        document.getElementById('edit_inv_ficha').value     = ficha;
+        document.getElementById('edit_inv_sku').value       = sku;
+        document.getElementById('edit_inv_quantity').value  = quantity;
+        document.getElementById('edit_inv_desc1').value     = desc1;
+        document.getElementById('edit_inv_desc2').value     = desc2;
+        document.getElementById('edit_inv_unit').value      = unit;
+        document.getElementById('edit_inv_footage').value   = footage;
         openModal('editInventoryModal');
       }
 
